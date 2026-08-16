@@ -3,91 +3,57 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.7+-green.svg)](https://www.python.org/)
 [![Telegram](https://img.shields.io/badge/Telegram-Platform-0088cc.svg)](https://telegram.org)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#testing)
-[![Tests](https://img.shields.io/badge/tests-20/20%20passing-brightgreen.svg)](#testing)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#)
+[![Tests](https://img.shields.io/badge/tests-20/20%20passing-brightgreen.svg)](#)
+[![Security](https://img.shields.io/badge/security-0%20CVEs-brightgreen.svg)](#)
 
 > Production-ready automated build system for custom Telegram Desktop with native multi-account support
 
 **Original Repository:** [OpenTelegramFiles/TgDesktop-multi-account](https://github.com/OpenTelegramFiles/TgDesktop-multi-account)  
 **Security Contact:** [Telegram @LightYagami28](https://t.me/LightYagami28)
 
-## Overview
-
-TgDesktop Multi-Account Builder is an enterprise-grade automation framework that compiles custom Telegram Desktop binaries with support for unlimited concurrent accounts. The standard Telegram Desktop limits users to 3 accounts — this tool removes that limitation.
-
-## Features
-
-- 🔒 **Secure** — Zero shell injection vulnerabilities, input validation, resource isolation
-- ⚡ **Fast** — Docker image caching, parallel compilation, BuildKit optimization
-- 🚀 **Reliable** — Comprehensive error handling, health checks, version detection
-- 📊 **Tested** — 20/20 test suite passing, 100% SonarQube compliant
-- 🐳 **Containerized** — CentOS Stream 9, memory/CPU limits, non-root execution
-
 ## Quick Start
-
-### Requirements
-
-- Ubuntu/Debian with Docker installed
-- Python 3.7+
-- 4GB+ RAM, 5GB+ disk space
-- Telegram API credentials ([my.telegram.org](https://my.telegram.org))
-
-### Installation
 
 ```bash
 git clone https://github.com/LightYagami28/TgDesktop-multi-account.git
 cd TgDesktop-multi-account
-```
-
-### Usage
-
-**Interactive mode:**
-
-```bash
 python3 telegram_maker_multi.py
 ```
 
-**Programmatic mode:**
+See **[Quick Start Wiki](wiki/02-Quick-Start.md)** for detailed instructions.
 
-```bash
-python3 telegram_maker_multi.py --voip-count 10 --api-id YOUR_API_ID --api-hash YOUR_API_HASH
-```
+## Features
+
+- 🔒 **Secure** — Zero shell injection, input validation, resource isolation
+- ⚡ **Fast** — Docker caching, parallel compilation, BuildKit optimization
+- 🚀 **Reliable** — Error handling, health checks, version detection
+- 📊 **Tested** — 20/20 tests passing, 100% SonarQube compliant, 0 CVEs
 
 ## Documentation
 
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — How to contribute (Contributor Covenant standards)
-- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Community standards and enforcement
-- **[CHANGELOG.md](CHANGELOG.md)** — Version history and release notes
-- **[SECURITY.md](SECURITY.md)** — Security architecture, threat model, and disclosures
+| Page | Description |
+|------|-------------|
+| [Installation](wiki/01-Installation.md) | Setup and prerequisites |
+| [Quick Start](wiki/02-Quick-Start.md) | First build in 5 minutes |
+| [Architecture](wiki/03-Architecture.md) | System design and security |
+| [Troubleshooting](wiki/06-Troubleshooting.md) | Common issues and solutions |
+| [Contributing](CONTRIBUTING.md) | Contribution guidelines |
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community standards |
+| [Changelog](CHANGELOG.md) | Version history |
+| [Security](SECURITY.md) | Security policy |
 
-## Development
+## Requirements
 
-### Testing
+- Ubuntu/Debian with Docker
+- Python 3.7+
+- 4GB+ RAM, 5GB+ disk
+- Telegram API credentials ([my.telegram.org](https://my.telegram.org))
 
-```bash
-python3 -m pytest test_telegram_maker.py -v
-```
+## Project Status
 
-All 20 tests passing. Security: 0 CVEs, 0 injection vulnerabilities.
-
-### Build Docker Image
-
-```bash
-docker build -t tdesktop:1.3.0 .
-```
-
-The Dockerfile uses:
-
-- **Base:** CentOS Stream 9 (active support)
-- **Compiler:** GCC 11 with optimized flags
-- **Security:** Non-root user, health checks, resource limits
-- **Dependencies:** Clean native packages (no weak deps or workarounds)
-
-## License
-
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+**v1.3.0** — Production Ready  
+**Last Updated:** 2026-08-17
 
 ---
 
-**Project Status:** v1.3.0 — Production Ready  
-**Last Updated:** 2026-08-17
+For full details, see the [Wiki](wiki/).
