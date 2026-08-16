@@ -77,6 +77,7 @@ docker build -t tdesktop:1.3.0 .
 ```
 
 The Dockerfile uses:
+
 - **Base:** CentOS Stream 9 (active support)
 - **Compiler:** GCC 11 with optimized flags
 - **Security:** Non-root user, health checks, resource limits
