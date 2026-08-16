@@ -10,8 +10,19 @@ from pathlib import Path
 
 def setup_logging(log_dir="tdesktop"):
     """Setup logging with file and console output."""
-    Path(log_dir).mkdir(exist_ok=True)
-    log_file = os.path.join(log_dir, f"telegram_build_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    # Prevent path traversal attacks
+    base_dir = Path.cwd()
+    log_path = (base_dir / log_dir).resolve()
+
+    # Ensure log_path is within base_dir (no traversal outside)
+    try:
+        log_path.relative_to(base_dir)
+    except ValueError:
+        logging.warning(f"Log directory {log_dir} attempts path traversal. Using default 'tdesktop'")
+        log_path = base_dir / "tdesktop"
+
+    log_path.mkdir(exist_ok=True, parents=True)
+    log_file = str(log_path / f"telegram_build_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 
     logging.basicConfig(
         level=logging.INFO,
