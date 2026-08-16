@@ -10,3 +10,10 @@ build/
 .DS_Store
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/settings.json
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+tdesktop/
