@@ -164,6 +164,6 @@ We take security seriously and will respond promptly to all security reports.
 ## Support
 
 For questions or issues:
-1. Check the [README.md](README.md) troubleshooting section
-2. Review [CLAUDE.md](CLAUDE.md) for development guidance
-3. Run tests to verify installation: `python3 -m pytest test_telegram_maker.py -v`
+1. Check the [Troubleshooting](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Troubleshooting) wiki page
+2. Run tests to verify installation: `python3 -m pytest test_telegram_maker.py -v`
+3. Report security issues to [@LightYagami28](https://t.me/LightYagami28) on Telegram
