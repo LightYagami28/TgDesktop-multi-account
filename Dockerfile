@@ -1,5 +1,6 @@
 # Telegram Desktop Build Environment - CentOS Stream 9 (Latest)
 # Production-ready, security-hardened, actively maintained
+# Audio libraries installed from alternative sources
 
 FROM quay.io/centos/centos:stream9 AS tdesktop_builder
 
@@ -12,13 +13,15 @@ ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     MAKEFLAGS=${MAKEFLAGS:--j4}
 
-# Install security updates and core build dependencies (minimal, functional)
-RUN dnf install -y --setopt=install_weak_deps=False \
-      dnf-plugins-core epel-release && \
+# Install CRB (CodeReady Builder) repository for additional packages
+RUN dnf config-manager --set-enabled crb && \
+    dnf install -y --setopt=install_weak_deps=False \
+      dnf-plugins-core epel-release epel-next-release && \
     dnf install -y --setopt=install_weak_deps=False \
       gcc gcc-c++ make cmake git \
       openssl openssl-devel libstdc++-devel zlib-devel \
       libjpeg-turbo-devel libpng-devel libwebp-devel \
+      pulseaudio-libs-devel alsa-lib-devel \
       qt5-qtbase-devel qt5-qtimageformats-devel qt5-qtsvg-devel \
       pkgconfig python3 wget curl ca-certificates && \
     dnf clean all && \
