@@ -112,13 +112,15 @@ If you discover a security vulnerability:
 
 1. **Do not** open a public GitHub issue
 2. **Do not** post about it on social media
-3. Send a detailed report to the repository maintainer with:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if any)
+3. Send a detailed report to:
+   - **Telegram**: https://t.me/LightYagami28
+   - Include:
+     - Description of the vulnerability
+     - Steps to reproduce
+     - Potential impact
+     - Suggested fix (if any)
 
-We take security seriously and will respond promptly.
+We take security seriously and will respond promptly to all security reports.
 
 ## Best Practices for Users
 
