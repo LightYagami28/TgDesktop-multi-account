@@ -26,7 +26,7 @@ cd TgDesktop-multi-account
 python3 telegram_maker_multi.py
 ```
 
-See **[Quick Start Wiki](wiki/02-Quick-Start.md)** for detailed instructions.
+See **[Quick Start Wiki](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Quick-Start)** for detailed instructions.
 
 ## Features
 
@@ -37,12 +37,14 @@ See **[Quick Start Wiki](wiki/02-Quick-Start.md)** for detailed instructions.
 
 ## Documentation
 
+**[Full Wiki →](https://github.com/LightYagami28/TgDesktop-multi-account/wiki)**
+
 | Page | Description |
 |------|-------------|
-| [Installation](wiki/01-Installation.md) | Setup and prerequisites |
-| [Quick Start](wiki/02-Quick-Start.md) | First build in 5 minutes |
-| [Architecture](wiki/03-Architecture.md) | System design and security |
-| [Troubleshooting](wiki/06-Troubleshooting.md) | Common issues and solutions |
+| [Installation](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Installation) | Setup and prerequisites |
+| [Quick Start](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Quick-Start) | First build in 5 minutes |
+| [Architecture](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Architecture) | System design and security |
+| [Troubleshooting](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Troubleshooting) | Common issues and solutions |
 | [Contributing](CONTRIBUTING.md) | Contribution guidelines |
 | [Code of Conduct](CODE_OF_CONDUCT.md) | Community standards |
 | [Changelog](CHANGELOG.md) | Version history |
@@ -62,4 +64,4 @@ See **[Quick Start Wiki](wiki/02-Quick-Start.md)** for detailed instructions.
 
 ---
 
-For full details, see the [Wiki](wiki/).
+For full details, see the **[Wiki →](https://github.com/LightYagami28/TgDesktop-multi-account/wiki)**
