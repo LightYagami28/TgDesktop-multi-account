@@ -172,7 +172,7 @@ class TestFileOperations(unittest.TestCase):
         """Should handle missing pattern in file."""
         from telegram_maker_multi import modify_max_accounts
 
-        test_content = "static constexpr auto kMaxAccounts = 5;\n"  # Different value
+        test_content = "// No kMaxAccounts pattern here\nint some_other_value = 5;\n"
 
         with patch("os.path.isfile", return_value=True):
             with patch("builtins.open", unittest.mock.mock_open(read_data=test_content)):
