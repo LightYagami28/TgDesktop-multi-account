@@ -35,6 +35,7 @@ def docker_image_exists(image_name):
         )
         return bool(result.stdout.strip())
     except subprocess.CalledProcessError:
+        logging.exception("Failed to check Docker images")
         return False
 
 
@@ -56,7 +57,7 @@ def get_system_cpus():
     """Get number of CPU cores."""
     try:
         return len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count() or 2
-    except:
+    except (AttributeError, OSError):
         return 2
 
 
@@ -135,7 +136,7 @@ def install_dependencies():
         subprocess.run(["sudo", "systemctl", "status", "docker"], check=True)
         logging.info("✓ Docker avviato con successo")
     except subprocess.CalledProcessError as e:
-        logging.error(f"✗ Errore installazione (exit code {e.returncode})")
+        logging.exception(f"✗ Errore installazione (exit code {e.returncode})")
         sys.exit(1)
 
 
@@ -154,7 +155,7 @@ def clone_telegram_source():
         logging.info("✓ Source code clonato con successo")
         return True
     except subprocess.CalledProcessError as e:
-        logging.error(f"✗ Errore clone (exit code {e.returncode})")
+        logging.exception(f"✗ Errore clone (exit code {e.returncode})")
         return False
 
 
@@ -197,7 +198,7 @@ def modify_max_accounts(voipn):
     try:
         voipn = validate_voip_count(voipn)
     except ValueError as e:
-        logging.error(str(e))
+        logging.exception(str(e))
         return False
 
     try:
@@ -222,7 +223,7 @@ def modify_max_accounts(voipn):
         logging.info(f"✓ kMaxAccounts modificato: {old_value} → {voipn}")
         return True
     except IOError as e:
-        logging.error(f"Errore modifica file: {e}")
+        logging.exception(f"Errore modifica file: {e}")
         return False
 
 
@@ -256,7 +257,7 @@ def build_docker_image(force_rebuild=False):
             dockerfile_path
         ]
 
-        result = subprocess.run(build_cmd, check=True)
+        subprocess.run(build_cmd, check=True)
         logging.info("✓ Immagine Docker creata con successo")
 
         # Get image info after build
@@ -267,7 +268,7 @@ def build_docker_image(force_rebuild=False):
 
         return True
     except subprocess.CalledProcessError as e:
-        logging.error(f"✗ Errore build Docker (exit code {e.returncode})")
+        logging.exception(f"✗ Errore build Docker (exit code {e.returncode})")
         return False
 
 
@@ -277,14 +278,14 @@ def run_build(apiid, apihash, memory_limit="4g", cpus="2", extra_flags=""):
         apiid = validate_api_id(apiid)
         apihash = validate_api_hash(apihash)
     except ValueError as e:
-        logging.error(str(e))
+        logging.exception(str(e))
         return False
 
     cwd = os.getcwd()
     cpus_available = get_system_cpus()
     cpus_requested = min(int(cpus.rstrip('+')), cpus_available)
 
-    logging.info(f"Configurazione build:")
+    logging.info("Configurazione build:")
     logging.info(f"  Memory limit: {memory_limit}")
     logging.info(f"  CPUs: {cpus_requested}/{cpus_available}")
     logging.info(f"  API ID: {apiid[:3]}***")
@@ -328,7 +329,7 @@ def run_build(apiid, apihash, memory_limit="4g", cpus="2", extra_flags=""):
             return True  # Build succeeded anyway
 
     except subprocess.CalledProcessError as e:
-        logging.error(f"✗ Errore build (exit code {e.returncode})")
+        logging.exception(f"✗ Errore build (exit code {e.returncode})")
         logging.error("Controlla l'output di Docker sopra per dettagli.")
         return False
 
