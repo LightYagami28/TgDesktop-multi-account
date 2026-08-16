@@ -9,12 +9,8 @@ from pathlib import Path
 
 
 def setup_logging(log_dir="tdesktop"):
-    """Setup logging with file and console output."""
-    # Prevent path traversal attacks
     base_dir = Path.cwd()
     log_path = (base_dir / log_dir).resolve()
-
-    # Ensure log_path is within base_dir (no traversal outside)
     try:
         log_path.relative_to(base_dir)
     except ValueError:
@@ -36,7 +32,6 @@ def setup_logging(log_dir="tdesktop"):
 
 
 def docker_image_exists(image_name):
-    """Check if Docker image already exists."""
     try:
         result = subprocess.run(
             ["docker", "images", "-q", image_name],
@@ -51,7 +46,6 @@ def docker_image_exists(image_name):
 
 
 def get_docker_image_info(image_name):
-    """Get Docker image metadata."""
     try:
         result = subprocess.run(
             ["docker", "inspect", image_name],
@@ -65,7 +59,6 @@ def get_docker_image_info(image_name):
 
 
 def get_system_cpus():
-    """Get number of CPU cores."""
     try:
         return len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count() or 2
     except (AttributeError, OSError):
@@ -73,7 +66,6 @@ def get_system_cpus():
 
 
 def validate_voip_count(voipn):
-    """Validate that voipn is a positive integer."""
     if not voipn.isdigit():
         raise ValueError("Il numero di account deve essere un numero intero positivo.")
     count = int(voipn)
@@ -83,7 +75,6 @@ def validate_voip_count(voipn):
 
 
 def validate_api_id(apiid):
-    """Validate API ID format (numeric, non-empty)."""
     apiid = apiid.strip()
     if not apiid:
         raise ValueError("API ID non può essere vuoto.")
@@ -93,7 +84,6 @@ def validate_api_id(apiid):
 
 
 def validate_api_hash(apihash):
-    """Validate API hash format (non-empty, alphanumeric)."""
     apihash = apihash.strip()
     if not apihash:
         raise ValueError("API hash non può essere vuoto.")
@@ -103,7 +93,6 @@ def validate_api_hash(apihash):
 
 
 def install_dependencies():
-    """Install Docker prerequisites."""
     logging.info("Installazione dei prerequisiti Docker in corso...")
     try:
         logging.info("  • Installazione dipendenze base...")
@@ -152,7 +141,6 @@ def install_dependencies():
 
 
 def clone_telegram_source():
-    """Clone Telegram Desktop source repository."""
     if os.path.isdir("tdesktop"):
         logging.warning("La directory tdesktop esiste già. Saltando il clone...")
         return True
@@ -171,7 +159,6 @@ def clone_telegram_source():
 
 
 def verify_build_output(binary_path):
-    """Verify build output and copy to output directory."""
     if os.path.isfile(binary_path):
         file_size = os.path.getsize(binary_path) / (1024**2)  # MB
         mod_time = datetime.fromtimestamp(os.path.getmtime(binary_path))
@@ -199,7 +186,6 @@ def verify_build_output(binary_path):
 
 
 def modify_max_accounts(voipn):
-    """Modify kMaxAccounts constant in main_domain.h with regex support."""
     main_domain_path = "tdesktop/Telegram/SourceFiles/main/main_domain.h"
 
     if not os.path.isfile(main_domain_path):
@@ -239,7 +225,6 @@ def modify_max_accounts(voipn):
 
 
 def build_docker_image(force_rebuild=False):
-    """Build Docker image for CentOS build environment with caching."""
     dockerfile_path = "tdesktop/Telegram/build/docker/centos_env"
     image_name = "tdesktop:centos_env"
 
@@ -284,7 +269,6 @@ def build_docker_image(force_rebuild=False):
 
 
 def run_build(apiid, apihash, memory_limit="4g", cpus="2", extra_flags=""):
-    """Run the Docker build with API credentials and resource limits."""
     try:
         apiid = validate_api_id(apiid)
         apihash = validate_api_hash(apihash)
@@ -346,7 +330,6 @@ def run_build(apiid, apihash, memory_limit="4g", cpus="2", extra_flags=""):
 
 
 def handle_source_download():
-    """Handle source code download and modification."""
     if input("Scaricare Telegram Desktop source? (digitare 'n' se la possedete già) [Y/n]: ").upper() == "Y":
         if not clone_telegram_source():
             sys.exit(1)
@@ -359,7 +342,6 @@ def handle_source_download():
 
 
 def handle_docker_build(force_rebuild=False, memory="4g", cpus="2", cmake_flags=""):
-    """Handle Docker build process with configuration."""
     if not build_docker_image(force_rebuild=force_rebuild):
         sys.exit(1)
 
@@ -381,7 +363,6 @@ def handle_docker_build(force_rebuild=False, memory="4g", cpus="2", cmake_flags=
 
 
 def main():
-    """Main workflow with logging and advanced options."""
     import argparse
 
     parser = argparse.ArgumentParser(
