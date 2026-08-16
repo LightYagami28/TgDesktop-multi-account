@@ -17,7 +17,7 @@ ENV LANG=C.UTF-8 \
 RUN dnf config-manager --set-enabled crb && \
     dnf install -y --setopt=install_weak_deps=False \
       dnf-plugins-core epel-release epel-next-release && \
-    dnf install -y --setopt=install_weak_deps=False \
+    dnf install -y --setopt=install_weak_deps=False --allowerasing \
       gcc gcc-c++ make cmake git \
       openssl openssl-devel libstdc++-devel zlib-devel \
       libjpeg-turbo-devel libpng-devel libwebp-devel \
