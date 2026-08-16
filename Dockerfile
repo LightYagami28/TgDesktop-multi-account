@@ -19,7 +19,7 @@ RUN dnf update -y && \
       openssl openssl-devel libstdc++-devel zlib-devel \
       libjpeg-turbo-devel libpng-devel libwebp-devel \
       qt5-qtbase-devel qt5-qtimageformats-devel qt5-qtsvg-devel \
-      pkgconfig python3 wget curl && \
+      pkgconfig python3 wget && \
     dnf clean all && \
     rm -rf /var/cache/dnf/* /tmp/* /var/tmp/*
 
