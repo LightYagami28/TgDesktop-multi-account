@@ -300,7 +300,7 @@ def run_build(apiid, apihash, memory_limit="4g", cpus="2", extra_flags=""):
         cmake_flags.extend(extra_flags.split())
 
     build_cmd = [
-        "docker", "run", "--rm", "-it",
+        "docker", "run", "--rm", "-i",
         "-m", memory_limit,
         "--cpus", str(cpus_requested),
         "-v", f"{cwd}:/usr/src/tdesktop",

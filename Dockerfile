@@ -32,6 +32,9 @@ RUN groupadd -r builder && \
 # Set working directory
 WORKDIR /usr/src/tdesktop
 
+# Never run the build container as root by default.
+USER builder
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD test -d /usr/src/tdesktop || exit 1
