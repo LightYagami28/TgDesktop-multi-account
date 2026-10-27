@@ -12,7 +12,8 @@ ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     MAKEFLAGS=-j4
 
-# Update and install core build dependencies
+# CentOS Stream rolls forward, so exact dnf versions would break the next build.
+# hadolint ignore=DL3041
 RUN dnf update -y && \
     dnf install -y \
       gcc gcc-c++ make cmake git \
@@ -37,7 +38,7 @@ USER builder
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD test -d /usr/src/tdesktop || exit 1
+    CMD ["test", "-d", "/usr/src/tdesktop"]
 
 # Default build command
 CMD ["/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh"]
