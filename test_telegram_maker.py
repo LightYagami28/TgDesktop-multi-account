@@ -180,5 +180,48 @@ class TestFileOperations(unittest.TestCase):
                 self.assertFalse(result)
 
 
+class TestAskYesNo(unittest.TestCase):
+    """Test della conferma [Y/n] / [y/N]."""
+
+    def ask(self, answers, default=True):
+        from telegram_maker_multi import ask_yes_no
+
+        feed = iter(answers)
+        prompts = []
+
+        def fake_input(prompt):
+            prompts.append(prompt)
+            try:
+                return next(feed)
+            except StopIteration:
+                raise EOFError
+
+        return ask_yes_no("Domanda? ", default=default, input_func=fake_input), prompts
+
+    def test_enter_uses_default_yes(self):
+        self.assertEqual(self.ask([""])[0], True)
+        self.assertEqual(self.ask(["   "])[0], True)
+
+    def test_enter_uses_default_no(self):
+        self.assertEqual(self.ask([""], default=False)[0], False)
+
+    def test_yes_answers(self):
+        for answer in ("y", "Y", "yes", "s", "si", "SI", "sì"):
+            self.assertEqual(self.ask([answer], default=False)[0], True, answer)
+
+    def test_no_answers(self):
+        for answer in ("n", "N", "no", "NO"):
+            self.assertEqual(self.ask([answer])[0], False, answer)
+
+    def test_invalid_answer_asks_again(self):
+        with self.assertLogs(level="WARNING"):
+            result, prompts = self.ask(["forse", "n"])
+        self.assertEqual(result, False)
+        self.assertEqual(len(prompts), 2)
+
+    def test_eof_does_not_confirm(self):
+        self.assertEqual(self.ask([])[0], False)
+
+
 if __name__ == "__main__":
     unittest.main()
