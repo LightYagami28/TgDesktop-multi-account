@@ -92,6 +92,30 @@ def validate_api_hash(apihash):
     return apihash
 
 
+YES_ANSWERS = {"y", "yes", "s", "si", "sì"}
+NO_ANSWERS = {"n", "no"}
+
+
+def ask_yes_no(prompt, default=True, input_func=input):
+    """Chiede una conferma s/n. Invio (risposta vuota) restituisce il default.
+
+    Le risposte non valide vengono richieste di nuovo. A fine input (EOF)
+    restituisce False, così nessuna azione parte senza una conferma.
+    """
+    while True:
+        try:
+            answer = input_func(prompt).strip().lower()
+        except EOFError:
+            return False
+        if not answer:
+            return default
+        if answer in YES_ANSWERS:
+            return True
+        if answer in NO_ANSWERS:
+            return False
+        logging.warning("Risposta non valida: digitare y oppure n (Invio = %s).", "y" if default else "n")
+
+
 def install_dependencies():
     logging.info("Installazione dei prerequisiti Docker in corso...")
     try:
@@ -330,12 +354,12 @@ def run_build(apiid, apihash, memory_limit="4g", cpus="2", extra_flags=""):
 
 
 def handle_source_download():
-    if input("Scaricare Telegram Desktop source? (digitare 'n' se la possedete già) [Y/n]: ").upper() == "Y":
+    if ask_yes_no("Scaricare Telegram Desktop source? (digitare 'n' se la possedete già) [Y/n]: "):
         if not clone_telegram_source():
             sys.exit(1)
         return
 
-    if input("Sostituire il numero massimo di account? [Y/n]: ").upper() == "Y":
+    if ask_yes_no("Sostituire il numero massimo di account? [Y/n]: "):
         voipn = input("Quanti account vuoi avere al massimo?: ")
         if not modify_max_accounts(voipn):
             sys.exit(1)
@@ -349,13 +373,13 @@ def handle_docker_build(force_rebuild=False, memory="4g", cpus="2", cmake_flags=
     apihash = input("Inserisci il tuo API hash: ")
 
     # Show advanced options
-    show_advanced = input("Mostrare opzioni avanzate? [y/N]: ").upper() == "Y"
+    show_advanced = ask_yes_no("Mostrare opzioni avanzate? [y/N]: ", default=False)
     if show_advanced:
         memory = input(f"Memory limit (default {memory}): ") or memory
         cpus = input(f"CPU cores (default {cpus}): ") or cpus
         cmake_flags = input("CMake flags extra (default vuoto): ") or ""
 
-    if input("Continuare con la build? [Y/n]: ").upper() == "Y":
+    if ask_yes_no("Continuare con la build? [Y/n]: "):
         if not run_build(apiid, apihash, memory_limit=memory, cpus=cpus, extra_flags=cmake_flags):
             sys.exit(1)
     else:
@@ -385,14 +409,14 @@ def main():
     logging.info(f"CPU disponibili: {get_system_cpus()}")
     logging.info("")
 
-    if input("Installare requisiti Docker? [Y/n]: ").upper() == "Y":
+    if ask_yes_no("Installare requisiti Docker? [Y/n]: "):
         install_dependencies()
         logging.info("")
 
     handle_source_download()
     logging.info("")
 
-    if input("Usare Docker e buildare il source? [Y/n]: ").upper() == "Y":
+    if ask_yes_no("Usare Docker e buildare il source? [Y/n]: "):
         handle_docker_build(
             force_rebuild=args.force_rebuild,
             memory=args.memory,
