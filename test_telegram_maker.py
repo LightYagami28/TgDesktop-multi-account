@@ -4,6 +4,8 @@ from unittest.mock import patch
 
 from telegram_maker_multi import (
     ask_yes_no,
+    docker_apt_source,
+    install_dependencies,
     modify_max_accounts,
     run_command,
     validate_voip_count,
@@ -233,6 +235,31 @@ class TestRunCommand(unittest.TestCase):
         with patch("shutil.which", return_value=None):
             with self.assertRaises(FileNotFoundError):
                 run_command(["comando-inesistente"])
+
+
+class TestDockerInstall(unittest.TestCase):
+    """Test dell'installazione di Docker."""
+
+    def test_source_line_is_signed_by_keyring(self):
+        """La riga del repository usa il keyring dedicato."""
+        line = docker_apt_source("noble", "amd64")
+        self.assertIn("signed-by=/etc/apt/keyrings/docker.asc", line)
+        self.assertIn("ubuntu noble stable", line)
+
+    def test_install_uses_keyring_not_apt_key(self):
+        """Nessun comando usa apt-key."""
+        calls = []
+
+        def fake(cmd, **_kwargs):
+            calls.append(cmd)
+            return type("R", (), {"stdout": "amd64\n"})()
+
+        with patch("telegram_maker_multi.run_command", side_effect=fake), patch(
+            "platform.freedesktop_os_release", return_value={"VERSION_CODENAME": "noble"}
+        ):
+            install_dependencies()
+        self.assertFalse(any("apt-key" in c for c in calls))
+        self.assertIn(["sudo", "chmod", "a+r", "/etc/apt/keyrings/docker.asc"], calls)
 
 
 if __name__ == "__main__":

@@ -131,10 +131,17 @@ def ask_yes_no(prompt, default=True, input_func=input):
         )
 
 
-APT_PREREQUISITES = [
-    "apt-transport-https", "ca-certificates", "curl", "software-properties-common",
-]
-DOCKER_REPO = "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+APT_PREREQUISITES = ["ca-certificates", "curl"]
+DOCKER_KEYRING = "/etc/apt/keyrings/docker.asc"
+DOCKER_SOURCE_FILE = "/etc/apt/sources.list.d/docker.list"
+
+
+def docker_apt_source(codename, arch):
+    """Riga del repository Docker, firmata dal keyring dedicato."""
+    return (
+        f"deb [arch={arch} signed-by={DOCKER_KEYRING}] "
+        f"https://download.docker.com/linux/ubuntu {codename} stable\n"
+    )
 
 
 def install_dependencies():
@@ -150,11 +157,18 @@ def install_dependencies():
             ["curl", "-fsSL", "https://download.docker.com/linux/ubuntu/gpg"],
             capture_output=True, text=True,
         )
-        run_command(["sudo", "apt-key", "add", "-"], input=key.stdout, text=True)
+        run_command(["sudo", "install", "-d", "-m", "0755", "/etc/apt/keyrings"])
+        run_command(["sudo", "tee", DOCKER_KEYRING], input=key.stdout, text=True,
+                    stdout=subprocess.DEVNULL)
+        run_command(["sudo", "chmod", "a+r", DOCKER_KEYRING])
         logging.info("  ✓ Chiave GPG aggiunta")
 
         logging.info("  • Aggiunta repository Docker...")
-        run_command(["sudo", "add-apt-repository", "-y", DOCKER_REPO])
+        codename = platform.freedesktop_os_release().get("VERSION_CODENAME", "focal")
+        arch = run_command(["dpkg", "--print-architecture"],
+                           capture_output=True, text=True).stdout.strip()
+        run_command(["sudo", "tee", DOCKER_SOURCE_FILE], input=docker_apt_source(codename, arch),
+                    text=True, stdout=subprocess.DEVNULL)
         logging.info("  ✓ Repository aggiunto")
 
         logging.info("  • Aggiornamento package manager e installazione Docker CE...")

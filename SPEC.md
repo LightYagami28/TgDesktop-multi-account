@@ -58,7 +58,7 @@ No database. Files: `tdesktop/` (source, logs), `telegram_output/Telegram` (bina
 - Policy and reporting: [SECURITY.md](SECURITY.md)
 
 ## Known limits
-- Docker install is hardcoded for Ubuntu `focal` and uses the deprecated `apt-key`
+- Docker install targets Ubuntu/Debian with the Ubuntu Docker repository (keyring in `/etc/apt/keyrings`, codename from `/etc/os-release`)
 - The Dockerfile uses Qt5 packages; moving to CentOS Stream 10 needs a check of package availability
 - `kMaxAccounts` patch depends on the upstream source format
 - The clone has no pinned tag: the build tracks upstream `master`
@@ -66,7 +66,6 @@ No database. Files: `tdesktop/` (source, logs), `telegram_output/Telegram` (bina
 - The actual compile is not covered by tests or CI (too heavy); tests cover validation and helpers
 
 ## Roadmap
-- Modern Docker install (keyring in `/etc/apt/keyrings`, detect distro codename)
 - Option to pin the upstream tag/commit
 - Non-interactive mode (flags for API ID/hash via stdin or file)
 - English translation of messages
