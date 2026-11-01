@@ -17,3 +17,10 @@ CLAUDE.local.md
 .vscode/
 .idea/
 tdesktop/
+
+# Segreti locali
+.env
+.env.*
+!.env.example
+*.pem
+*.key
