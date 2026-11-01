@@ -58,7 +58,7 @@ The script reads **no environment variables** and needs no `.env` file. Credenti
 
 ```bash
 python3 -m unittest -v test_telegram_maker.py
-python3 -m py_compile telegram_maker_multi.py
+python3 -m py_compile telegram_maker_multi.py validation.py source_patch.py
 ```
 
 The same commands run in CI (`.github/workflows/tests.yml`) together with CodeQL. GitHub Actions are pinned by commit SHA.

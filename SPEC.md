@@ -12,7 +12,7 @@ Automate building a custom Telegram Desktop with a user-chosen account limit, av
 - Output copied to `telegram_output/Telegram`; timestamped log file
 
 ## Architecture
-Single module `telegram_maker_multi.py`, no third-party dependencies. All external work goes through `subprocess.run` with argument lists (no shell).
+Modules `telegram_maker_multi.py`, `validation.py` (input checks, yes/no prompts) and `source_patch.py` (kMaxAccounts patch), no third-party dependencies. All external work goes through `subprocess.run` with argument lists (no shell).
 
 | Function | Role |
 |----------|------|
@@ -20,7 +20,7 @@ Single module `telegram_maker_multi.py`, no third-party dependencies. All extern
 | `ask_yes_no` | `[Y/n]` prompt, Enter selects the default |
 | `validate_voip_count`, `validate_api_id`, `validate_api_hash` | Input validation |
 | `install_dependencies` | Docker CE install through `sudo apt` |
-| `clone_telegram_source`, `modify_max_accounts` | Source acquisition and patch |
+| `clone_telegram_source`, `modify_max_accounts` (in `source_patch.py`) | Source acquisition and patch |
 | `build_docker_image`, `run_build` | Image build and containerized compile |
 | `verify_build_output` | Checks and copies the binary |
 | `setup_logging` | File + stdout logging, path traversal guard |
@@ -58,7 +58,8 @@ No database. Files: `tdesktop/` (source, logs), `telegram_output/Telegram` (bina
 - Policy and reporting: [SECURITY.md](SECURITY.md)
 
 ## Known limits
-- Docker install targets Ubuntu/Debian with the Ubuntu Docker repository (keyring in `/etc/apt/keyrings`, codename from `/etc/os-release`)
+- Docker install targets Ubuntu/Debian with the Ubuntu Docker repository
+  (keyring in `/etc/apt/keyrings`, codename from `/etc/os-release`)
 - The Dockerfile uses Qt5 packages; moving to CentOS Stream 10 needs a check of package availability
 - `kMaxAccounts` patch depends on the upstream source format
 - The clone has no pinned tag: the build tracks upstream `master`

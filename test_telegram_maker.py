@@ -2,16 +2,9 @@
 import unittest
 from unittest.mock import patch
 
-from telegram_maker_multi import (
-    ask_yes_no,
-    docker_apt_source,
-    install_dependencies,
-    modify_max_accounts,
-    run_command,
-    validate_voip_count,
-    validate_api_id,
-    validate_api_hash,
-)
+from source_patch import modify_max_accounts
+from telegram_maker_multi import docker_apt_source, install_dependencies, run_command
+from validation import ask_yes_no, validate_api_hash, validate_api_id, validate_voip_count
 
 
 class TestValidateVoipCount(unittest.TestCase):
@@ -240,13 +233,13 @@ class TestRunCommand(unittest.TestCase):
 class TestDockerInstall(unittest.TestCase):
     """Test dell'installazione di Docker."""
 
-    def test_source_line_is_signed_by_keyring(self):
+    def test_source_signed(self):
         """La riga del repository usa il keyring dedicato."""
         line = docker_apt_source("noble", "amd64")
         self.assertIn("signed-by=/etc/apt/keyrings/docker.asc", line)
         self.assertIn("ubuntu noble stable", line)
 
-    def test_install_uses_keyring_not_apt_key(self):
+    def test_install_no_apt_key(self):
         """Nessun comando usa apt-key."""
         calls = []
 

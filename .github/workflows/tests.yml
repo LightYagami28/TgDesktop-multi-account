@@ -22,4 +22,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest -v test_telegram_maker.py
-      - run: python -m py_compile telegram_maker_multi.py
+      - run: python -m py_compile telegram_maker_multi.py validation.py source_patch.py
