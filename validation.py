@@ -37,7 +37,8 @@ NO_ANSWERS = {"n", "no"}
 
 
 def ask_yes_no(prompt, default=True, input_func=input):
-    """Chiede una conferma s/n.
+    """
+    Chiede una conferma s/n.
 
     Invio (risposta vuota) restituisce il default. Le risposte non valide
     vengono richieste di nuovo. A fine input (EOF) restituisce False, così
