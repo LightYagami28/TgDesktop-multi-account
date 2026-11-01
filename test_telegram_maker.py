@@ -182,7 +182,6 @@ class TestAskYesNo(unittest.TestCase):
 
     def ask(self, answers, default=True):
         """Esegue ask_yes_no con risposte simulate."""
-
         feed = iter(answers)
         prompts = []
 
