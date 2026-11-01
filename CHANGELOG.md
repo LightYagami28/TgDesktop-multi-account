@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.3.0] - 2026-08-17
 
 ### Added
+
 - Docker image caching and optimization (TIER 1+2+3)
 - Path traversal vulnerability prevention
 - Comprehensive test suite (20/20 tests passing)
@@ -17,18 +18,21 @@ All notable changes to this project will be documented in this file.
 - SECURITY.md with threat model
 
 ### Changed
+
 - Refactored os.system() to subprocess.run() for security
 - Improved error handling with logging module
 - Renamed script to follow Python naming conventions
 - Upgraded to CentOS Stream 9 from CentOS 7
 
 ### Fixed
+
 - Shell injection vulnerabilities (0 remaining)
 - SonarQube compliance issues (14 → 0)
 - Path traversal in log directory handling
 - Package conflicts in Docker build
 
 ### Security
+
 - ✅ 0 CVEs detected
 - ✅ 0 injection vulnerabilities
 - ✅ Input validation on all user inputs
