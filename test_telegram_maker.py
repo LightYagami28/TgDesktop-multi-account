@@ -1,16 +1,10 @@
+"""Test di telegram_maker_multi."""
 import unittest
-import sys
-import os
-from unittest.mock import patch, MagicMock
-from io import StringIO
+from unittest.mock import patch
 
-# Import the functions from the main script
-sys.path.insert(0, os.path.dirname(__file__))
-from telegram_maker_multi import (
-    validate_voip_count,
-    validate_api_id,
-    validate_api_hash,
-)
+from source_patch import modify_max_accounts
+from telegram_maker_multi import docker_apt_source, install_dependencies, run_command
+from validation import ask_yes_no, validate_api_hash, validate_api_id, validate_voip_count
 
 
 class TestValidateVoipCount(unittest.TestCase):
@@ -162,7 +156,6 @@ class TestFileOperations(unittest.TestCase):
 
     def test_modify_max_accounts_file_not_found(self):
         """Should handle missing file gracefully."""
-        from telegram_maker_multi import modify_max_accounts
 
         with patch("os.path.isfile", return_value=False):
             result = modify_max_accounts("5")
@@ -170,7 +163,6 @@ class TestFileOperations(unittest.TestCase):
 
     def test_modify_max_accounts_pattern_not_found(self):
         """Should handle missing pattern in file."""
-        from telegram_maker_multi import modify_max_accounts
 
         test_content = "// No kMaxAccounts pattern here\nint some_other_value = 5;\n"
 
@@ -184,8 +176,7 @@ class TestAskYesNo(unittest.TestCase):
     """Test della conferma [Y/n] / [y/N]."""
 
     def ask(self, answers, default=True):
-        from telegram_maker_multi import ask_yes_no
-
+        """Esegue ask_yes_no con risposte simulate."""
         feed = iter(answers)
         prompts = []
 
@@ -193,34 +184,75 @@ class TestAskYesNo(unittest.TestCase):
             prompts.append(prompt)
             try:
                 return next(feed)
-            except StopIteration:
-                raise EOFError
+            except StopIteration as exc:
+                raise EOFError from exc
 
         return ask_yes_no("Domanda? ", default=default, input_func=fake_input), prompts
 
     def test_enter_uses_default_yes(self):
-        self.assertEqual(self.ask([""])[0], True)
-        self.assertEqual(self.ask(["   "])[0], True)
+        """Enter uses default yes."""
+        self.assertTrue(self.ask([""])[0])
+        self.assertTrue(self.ask(["   "])[0])
 
     def test_enter_uses_default_no(self):
-        self.assertEqual(self.ask([""], default=False)[0], False)
+        """Enter uses default no."""
+        self.assertFalse(self.ask([""], default=False)[0])
 
     def test_yes_answers(self):
+        """Yes answers."""
         for answer in ("y", "Y", "yes", "s", "si", "SI", "sì"):
-            self.assertEqual(self.ask([answer], default=False)[0], True, answer)
+            self.assertTrue(self.ask([answer], default=False)[0], answer)
 
     def test_no_answers(self):
+        """No answers."""
         for answer in ("n", "N", "no", "NO"):
-            self.assertEqual(self.ask([answer])[0], False, answer)
+            self.assertFalse(self.ask([answer])[0], answer)
 
     def test_invalid_answer_asks_again(self):
+        """Invalid answer asks again."""
         with self.assertLogs(level="WARNING"):
             result, prompts = self.ask(["forse", "n"])
-        self.assertEqual(result, False)
+        self.assertFalse(result)
         self.assertEqual(len(prompts), 2)
 
     def test_eof_does_not_confirm(self):
-        self.assertEqual(self.ask([])[0], False)
+        """Eof does not confirm."""
+        self.assertFalse(self.ask([])[0])
+
+
+class TestRunCommand(unittest.TestCase):
+    """Test dell'esecuzione dei comandi."""
+
+    def test_missing_executable_raises(self):
+        """Un eseguibile assente non viene lanciato."""
+        with patch("shutil.which", return_value=None):
+            with self.assertRaises(FileNotFoundError):
+                run_command(["comando-inesistente"])
+
+
+class TestDockerInstall(unittest.TestCase):
+    """Test dell'installazione di Docker."""
+
+    def test_source_signed(self):
+        """La riga del repository usa il keyring dedicato."""
+        line = docker_apt_source("noble", "amd64")
+        self.assertIn("signed-by=/etc/apt/keyrings/docker.asc", line)
+        self.assertIn("ubuntu noble stable", line)
+
+    def test_install_no_apt_key(self):
+        """Nessun comando usa apt-key."""
+        calls = []
+
+        def fake(cmd, **_kwargs):
+            calls.append(cmd)
+            return type("R", (), {"stdout": "amd64\n"})()
+
+        with patch("telegram_maker_multi.run_command", side_effect=fake), patch(
+            "platform.freedesktop_os_release", return_value={"VERSION_CODENAME": "noble"}
+        ):
+            install_dependencies()
+        self.assertFalse(any("apt-key" in c for c in calls))
+        self.assertIn(["sudo", "chmod", "a+r", "/etc/apt/keyrings/docker.asc"], calls)
 
 
 if __name__ == "__main__":

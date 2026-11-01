@@ -27,17 +27,20 @@ This prevents attackers from injecting shell metacharacters like `;`, `|`, `&&`,
 All user inputs are validated before use:
 
 #### Account Count (`voipn`)
+
 - Must be a positive integer
 - Rejects: negative numbers, zero, non-numeric input, special characters
 - Example: `"5; rm -rf /"` → ❌ REJECTED
 
 #### API ID (`apiid`)
+
 - Must be numeric
 - Cannot be empty
 - Whitespace is trimmed
 - Example: `"123; DROP TABLE users"` → ❌ REJECTED
 
 #### API Hash (`apihash`)
+
 - Must be alphanumeric (letters and numbers only)
 - Cannot be empty
 - No spaces, special characters, or shell metacharacters
@@ -64,6 +67,7 @@ except subprocess.CalledProcessError as e:
 ### 5. Dependency Safety ✅
 
 The script has **no external Python dependencies** beyond the standard library:
+
 - `os` - Standard library
 - `subprocess` - Standard library
 - `sys` - Standard library
@@ -79,6 +83,7 @@ python3 -m pytest test_telegram_maker.py -v
 ```
 
 Tests cover:
+
 - ✅ Input validation (20 dedicated test cases)
 - ✅ Injection prevention (9 test cases for various attack vectors)
 - ✅ Error handling (2 test cases for file operations)
@@ -89,19 +94,25 @@ Tests cover:
 ## Known Limitations
 
 ### 1. Docker Container Isolation
+
 The script mounts your entire project directory into the Docker container at `/usr/src/tdesktop`. While this is necessary for the build process, be aware that:
+
 - The build runs with elevated privileges (inside Docker)
 - Only run this script from trusted, clean directories
 - The Dockerfile comes from the official Telegram Desktop repository
 
 ### 2. System-Level Commands
+
 Some operations require `sudo` (Docker installation, systemctl):
+
 - You will be prompted for your password
 - Pre-auth with `sudo -v` if needed to avoid timeouts
 - Consider using passwordless sudo for Docker if you run this frequently
 
 ### 3. Source Code Download
+
 The script clones the full Telegram Desktop repository (~1 GB) with recursive submodules:
+
 - This includes all history
 - Verify the repository URL is correct: `https://github.com/telegramdesktop/tdesktop.git`
 - Use SSH keys if you want to avoid HTTPS authentication
@@ -113,7 +124,7 @@ If you discover a security vulnerability:
 1. **Do not** open a public GitHub issue
 2. **Do not** post about it on social media
 3. Send a detailed report to:
-   - **Telegram**: https://t.me/LightYagami28
+   - **Telegram**: <https://t.me/LightYagami28>
    - Include:
      - Description of the vulnerability
      - Steps to reproduce
@@ -125,17 +136,20 @@ We take security seriously and will respond promptly to all security reports.
 ## Best Practices for Users
 
 ### Before Running
+
 - Review the script: `cat telegram_maker_multi.py`
 - Verify you're on a trusted, clean system
 - Ensure Docker is updated: `docker --version`
 - Back up any existing Telegram Desktop configuration
 
 ### While Running
+
 - Monitor the script output for errors
 - Do not interrupt the Docker build (let it complete)
 - Keep your system connected to power (build takes 30-60 minutes)
 
 ### After Building
+
 - Verify the output binary: `file tdesktop/out/Release/Telegram`
 - Run a test build with this binary before deploying
 - Check Telegram Desktop version: `./Telegram --version`
@@ -143,6 +157,7 @@ We take security seriously and will respond promptly to all security reports.
 ## Version History
 
 ### v1.2.0 (Current)
+
 - ✅ Shell injection prevention via subprocess
 - ✅ Comprehensive input validation
 - ✅ Full test coverage (20 tests)
@@ -150,6 +165,7 @@ We take security seriously and will respond promptly to all security reports.
 - ✅ Clear error messages
 
 ### v1.0.0 (Original)
+
 - ⚠️ Used `os.system()` with string concatenation
 - ⚠️ No input validation
 - ⚠️ Minimal error handling
@@ -164,6 +180,7 @@ We take security seriously and will respond promptly to all security reports.
 ## Support
 
 For questions or issues:
+
 1. Check the [Troubleshooting](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Troubleshooting) wiki page
 2. Run tests to verify installation: `python3 -m pytest test_telegram_maker.py -v`
 3. Report security issues to [@LightYagami28](https://t.me/LightYagami28) on Telegram

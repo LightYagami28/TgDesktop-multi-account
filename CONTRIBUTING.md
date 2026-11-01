@@ -24,13 +24,14 @@ Before creating bug reports, please check the [issue list](https://github.com/Li
 
 **Do not** open public issues for security vulnerabilities. Instead, report directly to:
 
-- **Telegram**: https://t.me/LightYagami28
+* **Telegram**: <https://t.me/LightYagami28>
 
 Include as much detail as possible:
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if any)
+
+* Description of the vulnerability
+* Steps to reproduce
+* Potential impact
+* Suggested fix (if any)
 
 ### Suggesting Enhancements
 
@@ -88,28 +89,33 @@ All Python code must adhere to [PEP 8](https://www.python.org/dev/peps/pep-0008/
 ## Development Setup
 
 1. **Fork the repository**
+
    ```bash
    git clone https://github.com/YOUR-USERNAME/TgDesktop-multi-account.git
    cd TgDesktop-multi-account
    ```
 
 2. **Create a virtual environment**
+
    ```bash
    python3 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. **Install dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Run tests**
+
    ```bash
    python3 -m pytest test_telegram_maker.py -v
    ```
 
 5. **Create a feature branch**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -141,4 +147,4 @@ This CONTRIBUTING guide is adapted from the [Atom Contributing Guide](https://gi
 
 ---
 
-**Thank you for contributing! 🎉**
+Thank you for contributing.

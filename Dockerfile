@@ -1,7 +1,7 @@
 # Telegram Desktop Build Environment - CentOS Stream 9 (Latest)
 # Production-ready, security-hardened, clean dependencies
 
-FROM quay.io/centos/centos:stream9
+FROM quay.io/centos/centos:stream9@sha256:6f8045fc4f552544d8a401d61848bafc8d06ca7c11897c5b54a2c37fc419a20a
 
 LABEL maintainer="TgDesktop Multi-Account Builder"
 LABEL description="Secure build environment for Telegram Desktop with multi-account support"
@@ -13,7 +13,6 @@ ENV LANG=C.UTF-8 \
     MAKEFLAGS=-j4
 
 # CentOS Stream rolls forward, so exact dnf versions would break the next build.
-# hadolint ignore=DL3041
 RUN dnf update -y && \
     dnf install -y \
       gcc gcc-c++ make cmake git \
@@ -22,10 +21,8 @@ RUN dnf update -y && \
       qt5-qtbase-devel qt5-qtimageformats-devel qt5-qtsvg-devel \
       pkgconfig python3 wget && \
     dnf clean all && \
-    rm -rf /var/cache/dnf/* /tmp/* /var/tmp/*
-
-# Create non-root build user
-RUN groupadd -r builder && \
+    rm -rf /var/cache/dnf/* /tmp/* /var/tmp/* && \
+    groupadd -r builder && \
     useradd -r -g builder -u 1000 -d /home/builder -s /sbin/nologin builder && \
     mkdir -p /home/builder && \
     chown -R builder:builder /home/builder
@@ -34,7 +31,7 @@ RUN groupadd -r builder && \
 WORKDIR /usr/src/tdesktop
 
 # Never run the build container as root by default.
-USER builder
+USER 1000:1000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
