@@ -1,7 +1,7 @@
 # Telegram Desktop Build Environment - CentOS Stream 9 (Latest)
 # Production-ready, security-hardened, clean dependencies
 
-FROM quay.io/centos/centos:stream9
+FROM quay.io/centos/centos:stream9@sha256:6f8045fc4f552544d8a401d61848bafc8d06ca7c11897c5b54a2c37fc419a20a
 
 LABEL maintainer="TgDesktop Multi-Account Builder"
 LABEL description="Secure build environment for Telegram Desktop with multi-account support"
@@ -31,7 +31,7 @@ RUN dnf update -y && \
 WORKDIR /usr/src/tdesktop
 
 # Never run the build container as root by default.
-USER builder
+USER 1000:1000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
