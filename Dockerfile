@@ -13,7 +13,6 @@ ENV LANG=C.UTF-8 \
     MAKEFLAGS=-j4
 
 # CentOS Stream rolls forward, so exact dnf versions would break the next build.
-# hadolint ignore=DL3041
 RUN dnf update -y && \
     dnf install -y \
       gcc gcc-c++ make cmake git \
@@ -22,10 +21,8 @@ RUN dnf update -y && \
       qt5-qtbase-devel qt5-qtimageformats-devel qt5-qtsvg-devel \
       pkgconfig python3 wget && \
     dnf clean all && \
-    rm -rf /var/cache/dnf/* /tmp/* /var/tmp/*
-
-# Create non-root build user
-RUN groupadd -r builder && \
+    rm -rf /var/cache/dnf/* /tmp/* /var/tmp/* && \
+    groupadd -r builder && \
     useradd -r -g builder -u 1000 -d /home/builder -s /sbin/nologin builder && \
     mkdir -p /home/builder && \
     chown -R builder:builder /home/builder
