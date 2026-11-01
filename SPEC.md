@@ -15,7 +15,10 @@ Automate building a custom Telegram Desktop with a user-chosen account limit, av
 
 ## Architecture
 
-Modules `telegram_maker_multi.py`, `validation.py` (input checks, yes/no prompts) and `source_patch.py` (kMaxAccounts patch), no third-party dependencies. All external work goes through `subprocess.run` with argument lists (no shell).
+Modules: `telegram_maker_multi.py`, `validation.py` (input checks, yes/no
+prompts) and `source_patch.py` (kMaxAccounts patch). No third-party
+dependencies. All external work goes through `subprocess.run` with argument
+lists (no shell).
 
 | Function | Role |
 |----------|------|
@@ -23,7 +26,8 @@ Modules `telegram_maker_multi.py`, `validation.py` (input checks, yes/no prompts
 | `ask_yes_no` | `[Y/n]` prompt, Enter selects the default |
 | `validate_voip_count`, `validate_api_id`, `validate_api_hash` | Input validation |
 | `install_dependencies` | Docker CE install through `sudo apt` |
-| `clone_telegram_source`, `modify_max_accounts` (in `source_patch.py`) | Source acquisition and patch |
+| `clone_telegram_source` | Source acquisition |
+| `modify_max_accounts` | kMaxAccounts patch (`source_patch.py`) |
 | `build_docker_image`, `run_build` | Image build and containerized compile |
 | `verify_build_output` | Checks and copies the binary |
 | `setup_logging` | File + stdout logging, path traversal guard |
