@@ -23,3 +23,28 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest -v test_telegram_maker.py
       - run: python -m py_compile telegram_maker_multi.py validation.py source_patch.py
+
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Test con copertura
+        run: |
+          python -m pip install --quiet --only-binary :all: coverage==7.17.2
+          python -m coverage run --source=. --omit=test_*.py -m unittest -v test_telegram_maker.py
+          python -m coverage xml -o coverage.xml
+      # Il segreto SONAR_TOKEN manca nelle PR da fork e da Dependabot: l'analisi si salta.
+      - name: Scansione SonarCloud
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65  # v8.4.1
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}

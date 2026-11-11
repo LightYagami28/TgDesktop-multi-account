@@ -24,3 +24,4 @@ tdesktop/
 !.env.example
 *.pem
 *.key
+coverage.xml
