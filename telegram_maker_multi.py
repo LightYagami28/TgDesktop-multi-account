@@ -5,8 +5,11 @@ import logging
 import os
 import platform
 import shutil
-import subprocess
+# Il builder deve lanciare docker, git e apt: subprocess è usato solo tramite
+# run_command, senza shell e con l'eseguibile risolto a percorso completo.
+import subprocess  # nosec B404
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -14,12 +17,25 @@ from source_patch import modify_max_accounts
 from validation import ask_yes_no, validate_api_hash, validate_api_id
 
 
+@dataclass(frozen=True)
+class BuildOptions:
+    """Risorse del container e flag CMake aggiuntivi della build."""
+
+    memory_limit: str = "4g"
+    cpus: str = "2"
+    extra_flags: str = ""
+
+
 def run_command(cmd, **kwargs):
     """Esegue un comando con il percorso completo dell'eseguibile (nessuna shell)."""
     executable = shutil.which(cmd[0])
     if executable is None:
         raise FileNotFoundError(f"Comando non trovato: {cmd[0]}")
-    return subprocess.run([executable, *cmd[1:]], check=True, **kwargs)
+    # Lista di argomenti, mai shell=True: gli input dell'utente (API ID, hash,
+    # numero di account) sono validati prima e restano argomenti separati.
+    return subprocess.run(  # nosec B603
+        [executable, *cmd[1:]], check=True, **kwargs  # nosemgrep
+    )
 
 
 def _confined_log_path(log_dir):
@@ -40,7 +56,7 @@ def setup_logging(log_dir="tdesktop"):
     """Configura il logging su file e console; restituisce il percorso del log."""
     log_path = _confined_log_path(log_dir)
     log_path.mkdir(exist_ok=True, parents=True)
-    log_file = str(log_path / f"telegram_build_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    log_file = str(log_path / f"telegram_build_{datetime.now():%Y%m%d_%H%M%S}.log")
 
     logging.basicConfig(
         level=logging.INFO,
@@ -217,6 +233,21 @@ def _docker_build(image_name, dockerfile_path):
     ])
 
 
+def _build_image_and_report(image_name, dockerfile_path):
+    """Costruisce l'immagine e ne logga la dimensione; False se la build fallisce."""
+    try:
+        _docker_build(image_name, dockerfile_path)
+    except subprocess.CalledProcessError as exc:
+        logging.exception("✗ Errore build Docker (exit code %s)", exc.returncode)
+        return False
+    logging.info("✓ Immagine Docker creata con successo")
+
+    image_info = get_docker_image_info(image_name)
+    if image_info:
+        _log_image_size(image_info, "Dimensione finale")
+    return True
+
+
 def build_docker_image(force_rebuild=False):
     """Costruisce l'immagine Docker di build, se manca o se richiesto."""
     dockerfile_path = "tdesktop/Telegram/build/docker/centos_env"
@@ -230,19 +261,7 @@ def build_docker_image(force_rebuild=False):
         return True
 
     logging.info("Build dell'immagine Docker in corso da %s...", dockerfile_path)
-
-    try:
-        _docker_build(image_name, dockerfile_path)
-        logging.info("✓ Immagine Docker creata con successo")
-
-        image_info = get_docker_image_info(image_name)
-        if image_info:
-            _log_image_size(image_info, "Dimensione finale")
-
-        return True
-    except subprocess.CalledProcessError as exc:
-        logging.exception("✗ Errore build Docker (exit code %s)", exc.returncode)
-        return False
+    return _build_image_and_report(image_name, dockerfile_path)
 
 
 def _docker_run_command(cwd, cpus, memory_limit, cmake_flags):
@@ -270,8 +289,9 @@ def _cmake_flags(apiid, apihash, cpus, extra_flags):
     ]
 
 
-def _log_build_config(apiid, apihash, memory_limit, cpus_requested, cpus_available):
+def _log_build_config(apiid, apihash, memory_limit, cpus):
     """Logga la configurazione, con le credenziali mascherate."""
+    cpus_requested, cpus_available = cpus
     logging.info("Configurazione build:")
     logging.info("  Memory limit: %s, CPUs: %s/%s", memory_limit, cpus_requested, cpus_available)
     logging.info("  API ID: %s***, API Hash: %s***...", apiid[:3], apihash[:6])
@@ -284,21 +304,28 @@ def _resolve_cpus(cpus):
     return min(int(cpus.rstrip('+')), available), available
 
 
-def run_build(apiid, apihash, memory_limit="4g", cpus="2", extra_flags=""):
-    """Avvia la build di Telegram Desktop nel container."""
+def _validated_credentials(apiid, apihash):
+    """Credenziali validate, oppure None dopo aver loggato l'errore."""
     try:
-        apiid = validate_api_id(apiid)
-        apihash = validate_api_hash(apihash)
+        return validate_api_id(apiid), validate_api_hash(apihash)
     except ValueError as exc:
         logging.exception(str(exc))
+        return None
+
+
+def run_build(apiid, apihash, options=BuildOptions()):
+    """Avvia la build di Telegram Desktop nel container."""
+    credentials = _validated_credentials(apiid, apihash)
+    if credentials is None:
         return False
+    apiid, apihash = credentials
 
     cwd = os.getcwd()
-    cpus_requested, cpus_available = _resolve_cpus(cpus)
-    _log_build_config(apiid, apihash, memory_limit, cpus_requested, cpus_available)
+    cpus = _resolve_cpus(options.cpus)
+    _log_build_config(apiid, apihash, options.memory_limit, cpus)
     try:
-        cmake_flags = _cmake_flags(apiid, apihash, cpus_requested, extra_flags)
-        run_command(_docker_run_command(cwd, cpus_requested, memory_limit, cmake_flags))
+        cmake_flags = _cmake_flags(apiid, apihash, cpus[0], options.extra_flags)
+        run_command(_docker_run_command(cwd, cpus[0], options.memory_limit, cmake_flags))
         logging.info("✓ Build completata con successo")
 
         verify_build_output(os.path.join(cwd, "tdesktop/out/Release/Telegram"))
@@ -323,24 +350,34 @@ def handle_source_download():
             sys.exit(1)
 
 
-def handle_docker_build(force_rebuild=False, memory="4g", cpus="2", cmake_flags=""):
+def _ask_advanced_options(options):
+    """Chiede memoria, CPU e flag CMake; Invio conserva il valore proposto."""
+    if not ask_yes_no("Mostrare opzioni avanzate? [y/N]: ", default=False):
+        return options
+    memory = input(f"Memory limit (default {options.memory_limit}): ")
+    cpus = input(f"CPU cores (default {options.cpus}): ")
+    flags = input(f"CMake flags extra (default {options.extra_flags or 'vuoto'}): ")
+    return BuildOptions(
+        memory_limit=memory or options.memory_limit,
+        cpus=cpus or options.cpus,
+        extra_flags=flags or options.extra_flags,
+    )
+
+
+def handle_docker_build(force_rebuild=False, options=BuildOptions()):
     """Costruisce l'immagine e lancia la build chiedendo i dati all'utente."""
     if not build_docker_image(force_rebuild=force_rebuild):
         sys.exit(1)
 
     apiid = input("Inserisci il tuo API ID: ")
     apihash = input("Inserisci il tuo API hash: ")
+    options = _ask_advanced_options(options)
 
-    if ask_yes_no("Mostrare opzioni avanzate? [y/N]: ", default=False):
-        memory = input(f"Memory limit (default {memory}): ") or memory
-        cpus = input(f"CPU cores (default {cpus}): ") or cpus
-        cmake_flags = input("CMake flags extra (default vuoto): ") or ""
-
-    if ask_yes_no("Continuare con la build? [Y/n]: "):
-        if not run_build(apiid, apihash, memory_limit=memory, cpus=cpus, extra_flags=cmake_flags):
-            sys.exit(1)
-    else:
+    if not ask_yes_no("Continuare con la build? [Y/n]: "):
         logging.info("Build annullata.")
+        return
+    if not run_build(apiid, apihash, options):
+        sys.exit(1)
 
 
 def parse_args():
@@ -382,9 +419,7 @@ def main():
     if ask_yes_no("Usare Docker e buildare il source? [Y/n]: "):
         handle_docker_build(
             force_rebuild=args.force_rebuild,
-            memory=args.memory,
-            cpus=args.cpus,
-            cmake_flags=args.cmake_flags,
+            options=BuildOptions(args.memory, args.cpus, args.cmake_flags),
         )
     else:
         logging.info("Source code non trovato e build saltata.")

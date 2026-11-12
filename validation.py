@@ -34,27 +34,28 @@ def validate_api_hash(apihash):
 
 YES_ANSWERS = {"y", "yes", "s", "si", "sì"}
 NO_ANSWERS = {"n", "no"}
+ANSWERS = {**dict.fromkeys(YES_ANSWERS, True), **dict.fromkeys(NO_ANSWERS, False)}
+
+
+def _read_answer(prompt, input_func):
+    """Risposta in minuscolo senza spazi; a fine input (EOF) vale "n"."""
+    try:
+        return input_func(prompt).strip().lower()
+    except EOFError:
+        return "n"
 
 
 def ask_yes_no(prompt, default=True, input_func=input):
-    """
-    Chiede una conferma s/n.
-
-    Invio (risposta vuota) restituisce il default. Le risposte non valide
-    vengono richieste di nuovo. A fine input (EOF) restituisce False, così
-    nessuna azione parte senza una conferma.
-    """
+    """Chiede una conferma s/n e restituisce True o False."""
+    # Invio (risposta vuota) restituisce il default. Le risposte non valide
+    # vengono richieste di nuovo. A fine input (EOF) restituisce False, così
+    # nessuna azione parte senza una conferma.
     while True:
-        try:
-            answer = input_func(prompt).strip().lower()
-        except EOFError:
-            return False
+        answer = _read_answer(prompt, input_func)
         if not answer:
             return default
-        if answer in YES_ANSWERS:
-            return True
-        if answer in NO_ANSWERS:
-            return False
+        if answer in ANSWERS:
+            return ANSWERS[answer]
         logging.warning(
             "Risposta non valida: digitare y oppure n (Invio = %s).", "y" if default else "n"
         )
