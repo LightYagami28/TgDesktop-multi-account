@@ -1,6 +1,8 @@
 """Validazione degli input e domande s/n."""
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 def validate_voip_count(voipn):
     """Valida il numero massimo di account."""
@@ -56,7 +58,7 @@ def ask_yes_no(prompt, default=True, input_func=input):
             return default
         if answer in ANSWERS:
             return ANSWERS[answer]
-        logging.warning(
+        logger.warning(
             "Risposta non valida: digitare y oppure n (Invio = %s).",
             "y" if default else "n",
         )
