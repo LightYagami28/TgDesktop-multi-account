@@ -1,48 +1,35 @@
+# Dependabot: controllo giornaliero di tutte le dipendenze, major comprese.
+# Minori e patch arrivano in una sola PR per ecosistema, le major in una PR separata.
+# versioning-strategy: increase alza anche i range nel manifest all'ultima versione.
 version: 2
 updates:
-- package-ecosystem: pip
-  directory: /
-  schedule:
-    interval: daily
-  open-pull-requests-limit: 20
-  reviewers:
-  - LightYagami28
-  commit-message:
-    prefix: 'chore(deps):'
-    prefix-development: 'chore(deps-dev):'
-    include: scope
-  groups:
-    minori-e-patch:
-      update-types:
-      - minor
-      - patch
-- package-ecosystem: docker
-  directory: /
-  schedule:
-    interval: daily
-  open-pull-requests-limit: 20
-  reviewers:
-  - LightYagami28
-  commit-message:
-    prefix: 'chore(docker):'
-    include: scope
-  groups:
-    minori-e-patch:
-      update-types:
-      - minor
-      - patch
-- package-ecosystem: github-actions
-  directory: /
-  schedule:
-    interval: daily
-  open-pull-requests-limit: 20
-  reviewers:
-  - LightYagami28
-  commit-message:
-    prefix: 'ci:'
-    include: scope
-  groups:
-    minori-e-patch:
-      update-types:
-      - minor
-      - patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 20
+    commit-message:
+      prefix: dipendenze(github-actions)
+    groups:
+      minori-e-patch:
+        update-types:
+          - minor
+          - patch
+      major:
+        update-types:
+          - major
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 20
+    commit-message:
+      prefix: dipendenze(docker)
+    groups:
+      minori-e-patch:
+        update-types:
+          - minor
+          - patch
+      major:
+        update-types:
+          - major
