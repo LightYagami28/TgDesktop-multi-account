@@ -42,7 +42,6 @@ class FakeResult:
     """Risultato finto di run_command."""
 
     stdout: str = ""
-    returncode: int = 0
 
 
 def completed(stdout=""):
