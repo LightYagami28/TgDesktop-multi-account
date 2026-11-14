@@ -1,10 +1,11 @@
-"""Costruisce Telegram Desktop con il limite di account personalizzato, dentro Docker."""
+"""Costruisce Telegram Desktop con limite di account personalizzato, dentro Docker."""
 import argparse
 import json
 import logging
 import os
 import platform
 import shutil
+
 # Il builder deve lanciare docker, git e apt: subprocess è usato solo tramite
 # run_command, senza shell e con l'eseguibile risolto a percorso completo.
 import subprocess  # nosec B404
@@ -24,6 +25,9 @@ class BuildOptions:
     memory_limit: str = "4g"
     cpus: str = "2"
     extra_flags: str = ""
+
+
+DEFAULT_OPTIONS = BuildOptions()
 
 
 def run_command(cmd, **kwargs):
@@ -46,7 +50,8 @@ def _confined_log_path(log_dir):
         log_path.relative_to(base_dir)
     except ValueError:
         logging.warning(
-            "Log directory %s attempts path traversal. Using default 'tdesktop'", log_dir
+            "Log directory %s attempts path traversal. Using default 'tdesktop'",
+            log_dir,
         )
         return base_dir / "tdesktop"
     return log_path
@@ -72,7 +77,9 @@ def setup_logging(log_dir="tdesktop"):
 def docker_image_exists(image_name):
     """Dice se l'immagine Docker esiste in locale."""
     try:
-        result = run_command(["docker", "images", "-q", image_name], capture_output=True, text=True)
+        result = run_command(
+            ["docker", "images", "-q", image_name], capture_output=True, text=True
+        )
         return bool(result.stdout.strip())
     except subprocess.CalledProcessError:
         logging.exception("Failed to check Docker images")
@@ -82,7 +89,9 @@ def docker_image_exists(image_name):
 def get_docker_image_info(image_name):
     """Restituisce i metadati dell'immagine Docker o None."""
     try:
-        result = run_command(["docker", "inspect", image_name], capture_output=True, text=True)
+        result = run_command(
+            ["docker", "inspect", image_name], capture_output=True, text=True
+        )
         return json.loads(result.stdout)[0]
     except (subprocess.CalledProcessError, json.JSONDecodeError, IndexError):
         return None
@@ -128,8 +137,12 @@ def _add_docker_repo():
     codename = platform.freedesktop_os_release().get("VERSION_CODENAME", "focal")
     arch = run_command(["dpkg", "--print-architecture"],
                        capture_output=True, text=True).stdout.strip()
-    run_command(["sudo", "tee", DOCKER_SOURCE_FILE], input=docker_apt_source(codename, arch),
-                text=True, stdout=subprocess.DEVNULL)
+    run_command(
+        ["sudo", "tee", DOCKER_SOURCE_FILE],
+        input=docker_apt_source(codename, arch),
+        text=True,
+        stdout=subprocess.DEVNULL,
+    )
 
 
 def _install_docker_ce():
@@ -170,7 +183,9 @@ def clone_telegram_source():
         logging.warning("La directory tdesktop esiste già. Saltando il clone...")
         return True
 
-    logging.info("Clonazione source code di Telegram Desktop in corso (alcuni minuti)...")
+    logging.info(
+        "Clonazione source code di Telegram Desktop in corso (alcuni minuti)..."
+    )
     try:
         run_command(["git", "clone", "--recursive", TDESKTOP_REPO])
         logging.info("✓ Source code clonato con successo")
@@ -293,7 +308,9 @@ def _log_build_config(apiid, apihash, memory_limit, cpus):
     """Logga la configurazione, con le credenziali mascherate."""
     cpus_requested, cpus_available = cpus
     logging.info("Configurazione build:")
-    logging.info("  Memory limit: %s, CPUs: %s/%s", memory_limit, cpus_requested, cpus_available)
+    logging.info(
+        "  Memory limit: %s, CPUs: %s/%s", memory_limit, cpus_requested, cpus_available
+    )
     logging.info("  API ID: %s***, API Hash: %s***...", apiid[:3], apihash[:6])
     logging.info("Avvio della build in Docker...")
 
@@ -308,12 +325,12 @@ def _validated_credentials(apiid, apihash):
     """Credenziali validate, oppure None dopo aver loggato l'errore."""
     try:
         return validate_api_id(apiid), validate_api_hash(apihash)
-    except ValueError as exc:
-        logging.exception(str(exc))
+    except ValueError:
+        logging.exception("Credenziali non valide")
         return None
 
 
-def run_build(apiid, apihash, options=BuildOptions()):
+def run_build(apiid, apihash, options=DEFAULT_OPTIONS):
     """Avvia la build di Telegram Desktop nel container."""
     credentials = _validated_credentials(apiid, apihash)
     if credentials is None:
@@ -325,7 +342,9 @@ def run_build(apiid, apihash, options=BuildOptions()):
     _log_build_config(apiid, apihash, options.memory_limit, cpus)
     try:
         cmake_flags = _cmake_flags(apiid, apihash, cpus[0], options.extra_flags)
-        run_command(_docker_run_command(cwd, cpus[0], options.memory_limit, cmake_flags))
+        run_command(
+            _docker_run_command(cwd, cpus[0], options.memory_limit, cmake_flags)
+        )
         logging.info("✓ Build completata con successo")
 
         verify_build_output(os.path.join(cwd, "tdesktop/out/Release/Telegram"))
@@ -339,7 +358,9 @@ def run_build(apiid, apihash, options=BuildOptions()):
 
 def handle_source_download():
     """Scarica il sorgente o ne modifica il limite di account."""
-    if ask_yes_no("Scaricare Telegram Desktop source? (digitare 'n' se la possedete già) [Y/n]: "):
+    if ask_yes_no(
+        "Scaricare Telegram Desktop source? (digitare 'n' se la possedete già) [Y/n]: "
+    ):
         if not clone_telegram_source():
             sys.exit(1)
         return
@@ -350,21 +371,34 @@ def handle_source_download():
             sys.exit(1)
 
 
+def _asked_value(prompt, default):
+    """Chiede un valore; Invio restituisce quello proposto."""
+    value = input(prompt)
+    return value if value else default
+
+
+def _flag_preview(extra_flags):
+    """Testo mostrato come default dei flag CMake nel prompt."""
+    return extra_flags if extra_flags else "vuoto"
+
+
 def _ask_advanced_options(options):
     """Chiede memoria, CPU e flag CMake; Invio conserva il valore proposto."""
     if not ask_yes_no("Mostrare opzioni avanzate? [y/N]: ", default=False):
         return options
-    memory = input(f"Memory limit (default {options.memory_limit}): ")
-    cpus = input(f"CPU cores (default {options.cpus}): ")
-    flags = input(f"CMake flags extra (default {options.extra_flags or 'vuoto'}): ")
     return BuildOptions(
-        memory_limit=memory or options.memory_limit,
-        cpus=cpus or options.cpus,
-        extra_flags=flags or options.extra_flags,
+        memory_limit=_asked_value(
+            f"Memory limit (default {options.memory_limit}): ", options.memory_limit
+        ),
+        cpus=_asked_value(f"CPU cores (default {options.cpus}): ", options.cpus),
+        extra_flags=_asked_value(
+            f"CMake flags extra (default {_flag_preview(options.extra_flags)}): ",
+            options.extra_flags,
+        ),
     )
 
 
-def handle_docker_build(force_rebuild=False, options=BuildOptions()):
+def handle_docker_build(force_rebuild=False, options=DEFAULT_OPTIONS):
     """Costruisce l'immagine e lancia la build chiedendo i dati all'utente."""
     if not build_docker_image(force_rebuild=force_rebuild):
         sys.exit(1)
@@ -385,11 +419,17 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Build custom Telegram Desktop with multi-account support"
     )
-    parser.add_argument("--force-rebuild", action="store_true", help="Force Docker image rebuild")
-    parser.add_argument("--memory", default="4g", help="Docker memory limit (default: 4g)")
+    parser.add_argument(
+        "--force-rebuild", action="store_true", help="Force Docker image rebuild"
+    )
+    parser.add_argument(
+        "--memory", default="4g", help="Docker memory limit (default: 4g)"
+    )
     parser.add_argument("--cpus", default="2", help="Docker CPU count (default: 2)")
     parser.add_argument("--cmake-flags", default="", help="Extra CMake flags")
-    parser.add_argument("--log-dir", default="tdesktop", help="Log directory (default: tdesktop)")
+    parser.add_argument(
+        "--log-dir", default="tdesktop", help="Log directory (default: tdesktop)"
+    )
     return parser.parse_args()
 
 

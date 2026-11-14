@@ -57,5 +57,6 @@ def ask_yes_no(prompt, default=True, input_func=input):
         if answer in ANSWERS:
             return ANSWERS[answer]
         logging.warning(
-            "Risposta non valida: digitare y oppure n (Invio = %s).", "y" if default else "n"
+            "Risposta non valida: digitare y oppure n (Invio = %s).",
+            "y" if default else "n",
         )

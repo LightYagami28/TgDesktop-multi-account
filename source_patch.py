@@ -5,7 +5,6 @@ import re
 
 from validation import validate_voip_count
 
-
 MAX_ACCOUNTS_PATTERN = r'static\s+constexpr\s+auto\s+kMaxAccounts\s*=\s*(\d+)\s*;'
 
 
@@ -40,12 +39,12 @@ def modify_max_accounts(voipn):
 
     try:
         voipn = validate_voip_count(voipn)
-    except ValueError as exc:
-        logging.exception(str(exc))
+    except ValueError:
+        logging.exception("Numero di account non valido")
         return False
 
     try:
         return _patch_max_accounts(main_domain_path, voipn)
-    except OSError as exc:
-        logging.exception("Errore modifica file: %s", exc)
+    except OSError:
+        logging.exception("Errore modifica file")
         return False
