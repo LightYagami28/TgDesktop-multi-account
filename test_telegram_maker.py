@@ -7,6 +7,7 @@ import subprocess  # nosec B404
 import tempfile
 import unittest
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 from unittest.mock import mock_open, patch
@@ -36,12 +37,12 @@ def in_temp_dir():
             os.chdir(previous)
 
 
+@dataclass
 class FakeResult:
     """Risultato finto di run_command."""
 
-    def __init__(self, stdout=""):
-        self.returncode = 0
-        self.stdout = stdout
+    stdout: str = ""
+    returncode: int = 0
 
 
 def completed(stdout=""):
