@@ -36,9 +36,17 @@ def in_temp_dir():
             os.chdir(previous)
 
 
+class FakeResult:
+    """Risultato finto di run_command."""
+
+    def __init__(self, stdout=""):
+        self.returncode = 0
+        self.stdout = stdout
+
+
 def completed(stdout=""):
     """Risultato finto di run_command."""
-    return subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout)
+    return FakeResult(stdout)
 
 
 class TestValidateVoipCount(unittest.TestCase):
@@ -198,10 +206,11 @@ class TestFileOperations(unittest.TestCase):
         """Should handle missing pattern in file."""
         test_content = "// No kMaxAccounts pattern here\nint some_other_value = 5;\n"
 
-        with patch("os.path.isfile", return_value=True):
-            with patch("builtins.open", mock_open(read_data=test_content)):
-                result = modify_max_accounts("10")
-                self.assertFalse(result)
+        with patch("os.path.isfile", return_value=True), patch(
+            "builtins.open", mock_open(read_data=test_content)
+        ):
+            result = modify_max_accounts("10")
+            self.assertFalse(result)
 
 
 class TestAskYesNo(unittest.TestCase):
@@ -257,9 +266,10 @@ class TestRunCommand(unittest.TestCase):
 
     def test_missing_executable_raises(self):
         """Un eseguibile assente non viene lanciato."""
-        with patch("shutil.which", return_value=None):
-            with self.assertRaises(FileNotFoundError):
-                run_command(["comando-inesistente"])
+        with patch("shutil.which", return_value=None), self.assertRaises(
+            FileNotFoundError
+        ):
+            run_command(["comando-inesistente"])
 
 
 class TestDockerInstall(unittest.TestCase):
@@ -371,7 +381,7 @@ class TestRunCommandExec(unittest.TestCase):
             "subprocess.run", return_value=completed()
         ) as run:
             run_command(["docker", "ps"], text=True)
-        run.assert_called_once_with(["/usr/bin/docker", "ps"], check=True, text=True)
+        run.assert_called_once_with("/usr/bin/docker", "ps", check=True, text=True)
 
 
 class TestDockerQueries(unittest.TestCase):
@@ -444,9 +454,12 @@ class TestInstallFailure(unittest.TestCase):
 
     def test_exit_on_error(self):
         """Un comando fallito termina con codice 1."""
-        with patch.object(tm, "run_command", side_effect=FAILED), self.assertLogs(level="INFO"):
-            with self.assertRaises(SystemExit) as ctx:
-                install_dependencies()
+        with (
+            patch.object(tm, "run_command", side_effect=FAILED),
+            self.assertLogs(level="INFO"),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            install_dependencies()
         self.assertEqual(ctx.exception.code, 1)
 
 
@@ -470,9 +483,12 @@ class TestClone(unittest.TestCase):
 
     def test_clone_fails(self):
         """Un clone fallito restituisce False."""
-        with in_temp_dir(), patch.object(tm, "run_command", side_effect=FAILED):
-            with self.assertLogs(level="ERROR"):
-                self.assertFalse(tm.clone_telegram_source())
+        with (
+            in_temp_dir(),
+            patch.object(tm, "run_command", side_effect=FAILED),
+            self.assertLogs(level="ERROR"),
+        ):
+            self.assertFalse(tm.clone_telegram_source())
 
 
 class TestVerifyOutput(unittest.TestCase):
