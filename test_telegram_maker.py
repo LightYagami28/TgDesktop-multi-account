@@ -1,17 +1,25 @@
 """Test di telegram_maker_multi."""
 import json
 import os
-import subprocess
+
+# subprocess fornisce solo eccezioni e risultati finti: nessun comando viene eseguito.
+import subprocess  # nosec B404
 import tempfile
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import mock_open, patch
 
 import telegram_maker_multi as tm
 from source_patch import modify_max_accounts
 from telegram_maker_multi import docker_apt_source, install_dependencies, run_command
-from validation import ask_yes_no, validate_api_hash, validate_api_id, validate_voip_count
+from validation import (
+    ask_yes_no,
+    validate_api_hash,
+    validate_api_id,
+    validate_voip_count,
+)
 
 FAILED = subprocess.CalledProcessError(1, ["docker"])
 
@@ -324,13 +332,19 @@ class TestLogging(unittest.TestCase):
 
     def test_path_inside_cwd(self):
         """Una cartella interna viene accettata."""
-        with in_temp_dir() as root:
-            self.assertEqual(tm._confined_log_path("logs"), (root / "logs").resolve())
+        with in_temp_dir() as root, patch("logging.FileHandler"), patch(
+            "logging.basicConfig"
+        ):
+            log_file = Path(tm.setup_logging("logs"))
+            self.assertEqual(log_file.parent, (root / "logs").resolve())
 
     def test_path_traversal_blocked(self):
         """Una cartella esterna viene sostituita da tdesktop."""
-        with in_temp_dir(), self.assertLogs(level="WARNING"):
-            self.assertEqual(tm._confined_log_path("../fuori"), Path.cwd() / "tdesktop")
+        with in_temp_dir(), patch("logging.FileHandler"), patch(
+            "logging.basicConfig"
+        ), self.assertLogs(level="WARNING"):
+            log_file = Path(tm.setup_logging("../fuori"))
+            self.assertEqual(log_file.parent, Path.cwd() / "tdesktop")
 
     def test_setup_logging(self):
         """Il file di log sta nella cartella richiesta e ha il timestamp nel nome."""
@@ -382,7 +396,10 @@ class TestDockerQueries(unittest.TestCase):
         """I metadati sono il primo elemento del JSON di docker inspect."""
         payload = json.dumps([{"Size": 1024**3, "Created": "oggi"}])
         with patch.object(tm, "run_command", return_value=completed(payload)):
-            self.assertEqual(tm.get_docker_image_info("img")["Created"], "oggi")
+            info = tm.get_docker_image_info("img")
+        if info is None:
+            self.fail("Metadati immagine assenti")
+        self.assertEqual(info["Created"], "oggi")
 
     def test_image_info_unreadable(self):
         """JSON non valido, lista vuota o errore restituiscono None."""
@@ -408,9 +425,18 @@ class TestCpus(unittest.TestCase):
 
     def test_requested_capped(self):
         """Le CPU richieste non superano quelle disponibili."""
-        with patch.object(tm, "get_system_cpus", return_value=4):
-            self.assertEqual(tm._resolve_cpus("16"), (4, 4))
-            self.assertEqual(tm._resolve_cpus("2+"), (2, 4))
+        for requested, expected in (("16", "4"), ("2+", "2")):
+            with patch.object(tm, "get_system_cpus", return_value=4), patch.object(
+                tm, "run_command"
+            ) as run, patch.object(
+                tm, "verify_build_output", return_value=False
+            ), self.assertLogs(level="INFO"):
+                result = tm.run_build(
+                    "12345", "abcdef123456", tm.BuildOptions(cpus=requested)
+                )
+            self.assertTrue(result)
+            cmd = run.call_args.args[0]
+            self.assertEqual(cmd[cmd.index("--cpus") + 1], expected)
 
 
 class TestInstallFailure(unittest.TestCase):
@@ -476,13 +502,15 @@ class TestVerifyOutput(unittest.TestCase):
 class TestBuildImage(unittest.TestCase):
     """Test della build dell'immagine Docker."""
 
-    INFO = {"Size": 2 * 1024**3, "Created": "ieri"}
+    INFO: ClassVar[dict] = {"Size": 2 * 1024**3, "Created": "ieri"}
 
-    def build(self, force=False, exists=True, info=INFO, build_error=None):
+    def build(self, force=False, exists=True, build_error=None):
         """Esegue build_docker_image con Docker simulato."""
         with patch("os.path.isdir", return_value=True), patch.object(
             tm, "docker_image_exists", return_value=exists
-        ), patch.object(tm, "get_docker_image_info", return_value=info), patch.object(
+        ), patch.object(
+            tm, "get_docker_image_info", return_value=self.INFO
+        ), patch.object(
             tm, "_docker_build", side_effect=build_error
         ) as docker_build, self.assertLogs(level="INFO"):
             return tm.build_docker_image(force_rebuild=force), docker_build
@@ -514,8 +542,12 @@ class TestBuildImage(unittest.TestCase):
 
     def test_unreadable_image_rebuilt(self):
         """Un'immagine senza metadati viene ricostruita."""
-        result, docker_build = self.build(info=None)
-        self.assertTrue(result)
+        with patch("os.path.isdir", return_value=True), patch.object(
+            tm, "docker_image_exists", return_value=True
+        ), patch.object(tm, "get_docker_image_info", return_value=None), patch.object(
+            tm, "_docker_build"
+        ) as docker_build, self.assertLogs(level="INFO"):
+            self.assertTrue(tm.build_docker_image())
         docker_build.assert_called_once()
 
     def test_build_fails(self):
@@ -525,36 +557,45 @@ class TestBuildImage(unittest.TestCase):
 
     def test_docker_build_command(self):
         """Il comando docker build usa tag e percorso indicati."""
-        with patch.object(tm, "run_command") as run:
-            tm._docker_build("img", "percorso")
+        with patch("os.path.isdir", return_value=True), patch.object(
+            tm, "get_docker_image_info", return_value={"Size": 1, "Created": "oggi"}
+        ), patch.object(tm, "run_command") as run, self.assertLogs(level="INFO"):
+            self.assertTrue(tm.build_docker_image(force_rebuild=True))
         cmd = run.call_args.args[0]
         self.assertEqual(cmd[:2], ["docker", "build"])
-        self.assertEqual(cmd[-3:], ["-t", "img", "percorso"])
+        self.assertEqual(
+            cmd[-3:],
+            ["-t", "tdesktop:centos_env", "tdesktop/Telegram/build/docker/centos_env"],
+        )
 
 
 class TestRunBuild(unittest.TestCase):
     """Test della compilazione nel container."""
 
-    def run_build(self, apiid="12345", apihash="abcdef123456", options=None, error=None):
-        """Esegue run_build con Docker simulato; restituisce esito, comando e log."""
+    @contextmanager
+    def build_env(self, error=None):
+        """Docker simulato per run_build; restituisce il comando e i log."""
         with patch.object(tm, "run_command", side_effect=error) as run, patch.object(
             tm, "get_system_cpus", return_value=8
         ), patch.object(tm, "verify_build_output", return_value=False), self.assertLogs(
             level="INFO"
         ) as logs:
-            result = tm.run_build(apiid, apihash, options or tm.BuildOptions())
-        return result, run, "\n".join(logs.output)
+            yield run, logs
 
     def test_invalid_credentials(self):
         """Credenziali non valide: nessun comando viene lanciato."""
-        result, run, _ = self.run_build(apiid="12; rm -rf /")
+        with self.build_env() as (run, _):
+            result = tm.run_build("12; rm -rf /", "abcdef123456")
         self.assertFalse(result)
         run.assert_not_called()
 
     def test_command_and_limits(self):
         """Memoria, CPU e flag finiscono nel comando docker run."""
-        options = tm.BuildOptions(memory_limit="8g", cpus="4", extra_flags="-DA=1 -DB=2")
-        result, run, _ = self.run_build(options=options)
+        options = tm.BuildOptions(
+            memory_limit="8g", cpus="4", extra_flags="-DA=1 -DB=2"
+        )
+        with self.build_env() as (run, _):
+            result = tm.run_build("12345", "abcdef123456", options)
         cmd = run.call_args.args[0]
         self.assertTrue(result)
         self.assertEqual(cmd[cmd.index("-m") + 1], "8g")
@@ -565,14 +606,17 @@ class TestRunBuild(unittest.TestCase):
 
     def test_credentials_masked(self):
         """Nei log compare solo il prefisso delle credenziali."""
-        _, _, logged = self.run_build()
+        with self.build_env() as (_, logs):
+            tm.run_build("12345", "abcdef123456")
+            logged = "\n".join(logs.output)
         self.assertIn("API ID: 123***", logged)
         self.assertNotIn("12345", logged)
         self.assertNotIn("abcdef123456", logged)
 
     def test_docker_failure(self):
         """Un errore di docker run restituisce False."""
-        result, _, _ = self.run_build(error=FAILED)
+        with self.build_env(error=FAILED):
+            result = tm.run_build("12345", "abcdef123456")
         self.assertFalse(result)
 
 
@@ -620,13 +664,13 @@ class TestPrompts(unittest.TestCase):
         clone.assert_not_called()
         modify.assert_not_called()
 
-    def docker_build(self, answers, inputs, image_ok=True, build_ok=True):
+    def docker_build(self, answers, inputs):
         """Esegue handle_docker_build con risposte simulate."""
         options = tm.BuildOptions(memory_limit="4g", cpus="2", extra_flags="-DX=1")
-        with patch.object(tm, "build_docker_image", return_value=image_ok), patch.object(
+        with patch.object(tm, "build_docker_image", return_value=True), patch.object(
             tm, "ask_yes_no", side_effect=answers
         ), patch("builtins.input", side_effect=inputs), patch.object(
-            tm, "run_build", return_value=build_ok
+            tm, "run_build", return_value=True
         ) as run_build:
             tm.handle_docker_build(force_rebuild=False, options=options)
         return run_build
@@ -635,14 +679,18 @@ class TestPrompts(unittest.TestCase):
         """Senza opzioni avanzate restano i valori della riga di comando."""
         run_build = self.docker_build([False, True], ["111", "hash"])
         run_build.assert_called_once_with(
-            "111", "hash", tm.BuildOptions(memory_limit="4g", cpus="2", extra_flags="-DX=1")
+            "111",
+            "hash",
+            tm.BuildOptions(memory_limit="4g", cpus="2", extra_flags="-DX=1"),
         )
 
     def test_advanced_options(self):
         """Le opzioni avanzate sostituiscono solo i valori digitati."""
         run_build = self.docker_build([True, True], ["111", "hash", "8g", "", ""])
         run_build.assert_called_once_with(
-            "111", "hash", tm.BuildOptions(memory_limit="8g", cpus="2", extra_flags="-DX=1")
+            "111",
+            "hash",
+            tm.BuildOptions(memory_limit="8g", cpus="2", extra_flags="-DX=1"),
         )
 
     def test_build_cancelled(self):
@@ -653,13 +701,19 @@ class TestPrompts(unittest.TestCase):
 
     def test_image_build_fails(self):
         """Immagine non costruita: uscita con codice 1."""
-        with self.assertRaises(SystemExit):
-            self.docker_build([], [], image_ok=False)
+        with patch.object(
+            tm, "build_docker_image", return_value=False
+        ), self.assertRaises(SystemExit):
+            tm.handle_docker_build(force_rebuild=False, options=tm.BuildOptions())
 
     def test_build_fails(self):
         """Build fallita: uscita con codice 1."""
-        with self.assertRaises(SystemExit):
-            self.docker_build([False, True], ["111", "hash"], build_ok=False)
+        with patch.object(tm, "build_docker_image", return_value=True), patch.object(
+            tm, "ask_yes_no", side_effect=[False, True]
+        ), patch("builtins.input", side_effect=["111", "hash"]), patch.object(
+            tm, "run_build", return_value=False
+        ), self.assertRaises(SystemExit):
+            tm.handle_docker_build(force_rebuild=False, options=tm.BuildOptions())
 
 
 class TestMain(unittest.TestCase):
