@@ -5,10 +5,12 @@
 **DO NOT** open a public issue for security vulnerabilities.
 
 Instead, report directly to:
+
 - **Telegram:** [@LightYagami28](https://t.me/LightYagami28)
-- **Email:** ceo@retechrevive.it
+- **Email:** <ceo@retechrevive.it>
 
 Include:
+
 - Description of vulnerability
 - Steps to reproduce
 - Potential impact
@@ -35,6 +37,7 @@ We will respond within 48 hours and work on a fix immediately.
 ## Dependency Management
 
 Security updates are applied automatically via:
+
 - **Dependabot** — weekly scans
 - **GitHub Security Advisories** — continuous monitoring
 - **Manual audits** — regular reviews

@@ -8,6 +8,7 @@ labels: bug
 <!-- Clear and concise description of the bug -->
 
 ## Steps to Reproduce
+
 1.
 2.
 3.
@@ -19,14 +20,15 @@ labels: bug
 <!-- What actually happens -->
 
 ## Environment
-- OS: 
+
+- OS:
 - Python Version:
 - Docker Version (if applicable):
 
 ## Error Output
 <!-- Full error message/log if applicable -->
 
-```
+```text
 ```
 
 ## Additional Context
