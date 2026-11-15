@@ -44,4 +44,5 @@ See git log for historical changes.
 
 ---
 
-**Format**: This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions.
+**Format**: This changelog follows [Keep a
+Changelog](https://keepachangelog.com/en/1.0.0/) conventions.

@@ -13,6 +13,7 @@ ENV LANG=C.UTF-8 \
     MAKEFLAGS=-j4
 
 # CentOS Stream rolls forward, so exact dnf versions would break the next build.
+# hadolint ignore=DL3041
 RUN dnf update -y && \
     dnf install -y \
       gcc gcc-c++ make cmake git \

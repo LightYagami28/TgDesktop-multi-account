@@ -2,6 +2,7 @@
 <!-- Describe your changes in detail -->
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Enhancement
@@ -13,6 +14,7 @@
 <!-- Describe the tests you ran and how to reproduce them -->
 
 ## Checklist
+
 - [ ] Tests pass (`python3 -m pytest test_telegram_maker.py -v`)
 - [ ] No linting issues
 - [ ] Changes documented
@@ -23,4 +25,5 @@
 <!-- Any security implications? -->
 
 ## Related Issues
+
 Closes #

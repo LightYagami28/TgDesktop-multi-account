@@ -2,15 +2,19 @@
 
 ## Overview
 
-This script has been refactored with security as a top priority. It includes comprehensive input validation, safe subprocess execution, and error handling to prevent common vulnerabilities.
+This script has been refactored with security as a top priority. It includes
+comprehensive input validation, safe subprocess execution, and error handling to
+prevent common vulnerabilities.
 
 ## Security Features
 
 ### 1. Shell Injection Prevention ✅
 
-**Issue**: Original code used `os.system()` with string concatenation, allowing shell injection attacks.
+**Issue**: Original code used `os.system()` with string concatenation, allowing
+shell injection attacks.
 
-**Solution**: All system calls now use `subprocess.run()` with argument lists (no `shell=True`):
+**Solution**: All system calls now use `subprocess.run()` with argument lists
+(no `shell=True`):
 
 ```python
 # ✗ VULNERABLE (old code)
@@ -20,7 +24,8 @@ os.system("docker run -e VAR=" + user_input)
 subprocess.run(["docker", "run", "-e", f"VAR={user_input}"], check=True)
 ```
 
-This prevents attackers from injecting shell metacharacters like `;`, `|`, `&&`, or backticks.
+This prevents attackers from injecting shell metacharacters like `;`, `|`, `&&`,
+or backticks.
 
 ### 2. Input Validation ✅
 
@@ -48,7 +53,9 @@ All user inputs are validated before use:
 
 ### 3. Error Handling ✅
 
-All subprocess calls use `check=True` to catch non-zero exit codes and raise `CalledProcessError`. Critical errors cause graceful exit with user-friendly messages:
+All subprocess calls use `check=True` to catch non-zero exit codes and raise
+`CalledProcessError`. Critical errors cause graceful exit with user-friendly
+messages:
 
 ```python
 try:
@@ -72,7 +79,8 @@ The script has **no external Python dependencies** beyond the standard library:
 - `subprocess` - Standard library
 - `sys` - Standard library
 
-All external tools (Docker, git) are called via `subprocess` with safe argument passing.
+All external tools (Docker, git) are called via `subprocess` with safe argument
+passing.
 
 ## Testing
 
@@ -95,7 +103,9 @@ Tests cover:
 
 ### 1. Docker Container Isolation
 
-The script mounts your entire project directory into the Docker container at `/usr/src/tdesktop`. While this is necessary for the build process, be aware that:
+The script mounts your entire project directory into the Docker container at
+`/usr/src/tdesktop`. While this is necessary for the build process, be aware
+that:
 
 - The build runs with elevated privileges (inside Docker)
 - Only run this script from trusted, clean directories
@@ -111,10 +121,12 @@ Some operations require `sudo` (Docker installation, systemctl):
 
 ### 3. Source Code Download
 
-The script clones the full Telegram Desktop repository (~1 GB) with recursive submodules:
+The script clones the full Telegram Desktop repository (~1 GB) with recursive
+submodules:
 
 - This includes all history
-- Verify the repository URL is correct: `https://github.com/telegramdesktop/tdesktop.git`
+- Verify the repository URL is correct:
+  `https://github.com/telegramdesktop/tdesktop.git`
 - Use SSH keys if you want to avoid HTTPS authentication
 
 ## Reporting Security Issues
@@ -172,15 +184,22 @@ We take security seriously and will respond promptly to all security reports.
 
 ## References
 
-- OWASP: [Command Injection](https://owasp.org/www-community/attacks/Command_Injection)
-- OWASP: [OS Command Injection](https://owasp.org/www-community/attacks/OS_Command_Injection)
+- OWASP: [Command
+  Injection](https://owasp.org/www-community/attacks/Command_Injection)
+- OWASP: [OS Command
+  Injection](https://owasp.org/www-community/attacks/OS_Command_Injection)
 - Python: [subprocess module](https://docs.python.org/3/library/subprocess.html)
-- Python: [Security Best Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
+- Python: [Security Best
+  Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
 
 ## Support
 
 For questions or issues:
 
-1. Check the [Troubleshooting](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Troubleshooting) wiki page
-2. Run tests to verify installation: `python3 -m pytest test_telegram_maker.py -v`
-3. Report security issues to [@LightYagami28](https://t.me/LightYagami28) on Telegram
+1. Check the
+   [Troubleshooting](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Troubleshooting)
+   wiki page
+2. Run tests to verify installation:
+   `python3 -m pytest test_telegram_maker.py -v`
+3. Report security issues to [@LightYagami28](https://t.me/LightYagami28) on
+   Telegram
