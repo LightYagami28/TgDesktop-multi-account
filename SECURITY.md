@@ -121,8 +121,8 @@ Some operations require `sudo` (Docker installation, systemctl):
 
 ### 3. Source Code Download
 
-The script clones the full Telegram Desktop repository (~1 GB) with recursive
-submodules:
+The script clones the full Telegram Desktop repository (about one gigabyte)
+with recursive submodules:
 
 - This includes all history
 - Verify the repository URL is correct:
