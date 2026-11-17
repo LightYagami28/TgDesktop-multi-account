@@ -93,3 +93,12 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md) (Telegram:
 ## License
 
 Apache License 2.0, see [LICENSE](LICENSE).
+
+
+## Documentation
+
+- [Documentation index](docs/README.md)
+- [Architecture](ARCHITECTURE.md)
+- [Roadmap](ROADMAP.md)
+- [Testing](docs/TESTING.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
