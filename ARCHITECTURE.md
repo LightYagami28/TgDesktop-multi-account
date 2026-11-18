@@ -17,6 +17,14 @@ This repository builds a Telegram Desktop variant with multiple-account support.
 +-----------------------+             +-----------------------+
 ```
 
+## Main components
+
+- `telegram_maker_multi.py` coordinates the build workflow and user interaction.
+- `build_helpers.py` contains build support routines.
+- `source_patch.py` applies source changes to the upstream checkout.
+- `validation.py` checks inputs and generated state.
+- `test_telegram_maker.py` contains the Python unit tests.
+
 | Modulo | File | Responsabilità |
 |---|---|---|
 | CLI / Core | `telegram_maker_multi.py` | Entrypoint principale, orchestrazione creazione profili, mascheramento credenziali nei log. |
