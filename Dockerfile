@@ -1,7 +1,7 @@
 # Telegram Desktop Build Environment - CentOS Stream 9 (Latest)
 # Production-ready, security-hardened, clean dependencies
 
-FROM quay.io/centos/centos:stream9@sha256:280add9b43d478ff06de6ccc6285afa7f1d81d8a0ea0d63e292a2f87f1d5aedf
+FROM quay.io/centos/centos:stream9@sha256:875f628a88425be59d5edf2aa81e9836dd803de564ce3f728f23c63660d65662
 
 LABEL maintainer="TgDesktop Multi-Account Builder"
 LABEL description="Secure build environment for Telegram Desktop with multi-account support"
