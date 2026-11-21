@@ -981,6 +981,7 @@ class CommandRunnerTests(unittest.TestCase):
         self.assertEqual(result, 777)
         self.assertEqual(spawn.call_args.args[2], {"A": "B"})
         self.assertEqual(spawn.call_args.args[0], "/bin/echo")
+        self.assertEqual(spawn.call_args.args[1], ["/bin/echo"])
         self.assertEqual(spawn.call_args.kwargs["file_actions"], [])
 
     def test_make_result_decodes_chunks(self):

@@ -175,31 +175,16 @@ def _configure_streams(
     return out_read, err_read
 
 
-def _apply_actions(actions: list[tuple[Any, ...]]) -> None:
-    """Applica le redirezioni dei descrittori nel processo figlio."""
-    for action in actions:
-        kind = action[0]
-        if kind == os.POSIX_SPAWN_DUP2:
-            _, source, target = action
-            if source != target:
-                os.dup2(source, target)
-        elif kind == os.POSIX_SPAWN_OPEN:
-            _, target, path, flags, mode = action
-            opened = os.open(path, flags, mode)
-            if opened != target:
-                os.dup2(opened, target)
-                os.close(opened)
-
-
 def _spawn(
     argv: Sequence[str], actions: list[tuple[Any, ...]], env: Mapping[str, str] | None
 ) -> int:
-    """Avvia il figlio con posix_spawn: nessuna shell e argomenti separati.
+    """Avvia il figlio con ``posix_spawn``: nessuna shell e argomenti separati.
 
     L'eseguibile e' gia' convalidato come percorso assoluto da ``_validate`` e
-    proviene dalla whitelist del chiamante. Le redirezioni sono applicate dal
-    kernel prima dell'esecuzione, quindi nel figlio non corre codice Python e
-    non esiste un ritorno al chiamante in caso di errore di avvio.
+    proviene dalla whitelist del chiamante. Non si usa ``fork`` + ``execve``:
+    ``posix_spawn`` riceve la lista di argomenti gia' separata e applica le
+    redirezioni con ``file_actions``, senza interpretare stringhe e senza
+    esporre API di esecuzione dinamica a dati provenienti dall'esterno.
     """
     child_env = dict(os.environ if env is None else env)
     return os.posix_spawn(argv[0], list(argv), child_env, file_actions=actions)
