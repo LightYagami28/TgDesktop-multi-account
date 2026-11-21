@@ -1,17 +1,18 @@
-"""Costruisce Telegram Desktop con limite di account personalizzato, dentro Docker."""
+"""Build Telegram Desktop with a custom account limit inside Docker."""
+
+from __future__ import annotations
+
 import argparse
 import json
 import logging
 import os
 import platform
 import shutil
-
-# Il builder deve lanciare docker, git e apt: subprocess è usato solo tramite
-# run_command, senza shell e con l'eseguibile risolto a percorso completo.
-import subprocess  # nosec B404
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from build_helpers import (
     APT_PREREQUISITES,
@@ -32,39 +33,66 @@ from build_helpers import (
 from source_patch import modify_max_accounts
 from validation import ask_yes_no
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def run_command(cmd, **kwargs):
-    """Esegue un comando con il percorso completo dell'eseguibile (nessuna shell)."""
+def run_command(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+    """Run a command by resolved absolute path, never through a shell.
+
+    User-supplied values are validated before they reach an argument list,
+    so no string is ever interpreted by a shell.
+
+    Args:
+        cmd: Executable name followed by its separate arguments.
+        **kwargs: Extra keyword arguments forwarded to ``subprocess.run``.
+
+    Returns:
+        The completed process.
+
+    Raises:
+        FileNotFoundError: When the executable cannot be resolved.
+        subprocess.CalledProcessError: When the command exits non-zero.
+    """
     executable = shutil.which(cmd[0])
     if executable is None:
         raise FileNotFoundError(f"Comando non trovato: {cmd[0]}")
-    # Lista di argomenti, mai shell=True: gli input dell'utente (API ID, hash,
-    # numero di account) sono validati prima e restano argomenti separati.
     argv = [executable, *cmd[1:]]
-    return subprocess.run(*argv, check=True, **kwargs)  # nosec B603  # nosemgrep
+    return subprocess.run(*argv, check=True, **kwargs)
 
 
-def setup_logging(log_dir="tdesktop"):
-    """Configura il logging su file e console; restituisce il percorso del log."""
+def setup_logging(log_dir: str = "tdesktop") -> str:
+    """Configure file and console logging, returning the log file path.
+
+    Args:
+        log_dir: Directory name, confined inside the current directory.
+
+    Returns:
+        Path of the newly created log file.
+    """
     log_path = _confined_log_path(log_dir)
     log_path.mkdir(exist_ok=True, parents=True)
     log_file = str(log_path / f"telegram_build_{datetime.now():%Y%m%d_%H%M%S}.log")
 
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
             logging.FileHandler(log_file),
-            logging.StreamHandler(sys.stdout)
-        ]
+            logging.StreamHandler(sys.stdout),
+        ],
     )
     return log_file
 
 
-def docker_image_exists(image_name):
-    """Dice se l'immagine Docker esiste in locale."""
+def docker_image_exists(image_name: str) -> bool:
+    """Check whether a Docker image exists locally.
+
+    Args:
+        image_name: Image tag to inspect.
+
+    Returns:
+        ``True`` when the image has an ID, ``False`` on error or absence.
+    """
     try:
         result = run_command(
             ["docker", "images", "-q", image_name], capture_output=True, text=True
@@ -75,8 +103,15 @@ def docker_image_exists(image_name):
         return False
 
 
-def get_docker_image_info(image_name):
-    """Restituisce i metadati dell'immagine Docker o None."""
+def get_docker_image_info(image_name: str) -> dict[str, Any] | None:
+    """Read Docker metadata for an image.
+
+    Args:
+        image_name: Image tag to inspect.
+
+    Returns:
+        First metadata object, or ``None`` on error or malformed output.
+    """
     try:
         result = run_command(
             ["docker", "inspect", image_name], capture_output=True, text=True
@@ -86,33 +121,57 @@ def get_docker_image_info(image_name):
         return None
 
 
-def get_system_cpus():
-    """Numero di CPU utilizzabili (2 se non rilevabile)."""
+def get_system_cpus() -> int:
+    """Return the number of usable CPUs.
+
+    Returns:
+        Affinity size when available, otherwise the OS count, or 2 as fallback.
+    """
     try:
-        if hasattr(os, 'sched_getaffinity'):
+        if hasattr(os, "sched_getaffinity"):
             return len(os.sched_getaffinity(0))
         return os.cpu_count() or 2
     except (AttributeError, OSError):
         return 2
 
 
-def _add_docker_key():
-    """Scarica la chiave GPG di Docker nel keyring dedicato."""
+def _add_docker_key() -> None:
+    """Download Docker's GPG key into its dedicated keyring.
+
+    Returns:
+        None.
+
+    Raises:
+        subprocess.CalledProcessError: When any installation step fails.
+    """
     key = run_command(
         ["curl", "-fsSL", "https://download.docker.com/linux/ubuntu/gpg"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     run_command(["sudo", "install", "-d", "-m", "0755", "/etc/apt/keyrings"])
-    run_command(["sudo", "tee", DOCKER_KEYRING], input=key.stdout, text=True,
-                stdout=subprocess.DEVNULL)
+    run_command(
+        ["sudo", "tee", DOCKER_KEYRING],
+        input=key.stdout,
+        text=True,
+        stdout=subprocess.DEVNULL,
+    )
     run_command(["sudo", "chmod", "a+r", DOCKER_KEYRING])
 
 
-def _add_docker_repo():
-    """Scrive il repository Docker per il rilascio e l'architettura correnti."""
+def _add_docker_repo() -> None:
+    """Write the Docker apt repository for the current release and architecture.
+
+    Returns:
+        None.
+
+    Raises:
+        subprocess.CalledProcessError: When dpkg or tee fails.
+    """
     codename = platform.freedesktop_os_release().get("VERSION_CODENAME", "focal")
-    arch = run_command(["dpkg", "--print-architecture"],
-                       capture_output=True, text=True).stdout.strip()
+    arch = run_command(
+        ["dpkg", "--print-architecture"], capture_output=True, text=True
+    ).stdout.strip()
     run_command(
         ["sudo", "tee", DOCKER_SOURCE_FILE],
         input=docker_apt_source(codename, arch),
@@ -121,8 +180,15 @@ def _add_docker_repo():
     )
 
 
-def _install_docker_ce():
-    """Installa Docker CE dal repository aggiunto e avvia il daemon."""
+def _install_docker_ce() -> None:
+    """Install Docker CE and start its daemon.
+
+    Returns:
+        None.
+
+    Raises:
+        subprocess.CalledProcessError: When apt or systemctl fails.
+    """
     logger.info("  • Installazione di Docker CE e avvio del daemon...")
     run_command(["sudo", "apt", "update"])
     run_command(["sudo", "apt", "install", "-y", "docker-ce"])
@@ -130,8 +196,15 @@ def _install_docker_ce():
     run_command(["sudo", "systemctl", "status", "docker"])
 
 
-def install_dependencies():
-    """Installa Docker CE su Ubuntu/Debian."""
+def install_dependencies() -> None:
+    """Install the Docker prerequisites on Ubuntu/Debian.
+
+    Returns:
+        None.
+
+    Raises:
+        SystemExit: With code 1 when an installation command fails.
+    """
     logger.info("Installazione dei prerequisiti Docker in corso...")
     try:
         logger.info("  • Installazione dipendenze base...")
@@ -150,15 +223,17 @@ def install_dependencies():
         sys.exit(1)
 
 
-def clone_telegram_source():
-    """Clona il sorgente di Telegram Desktop se manca."""
+def clone_telegram_source() -> bool:
+    """Clone the Telegram Desktop source tree when missing.
+
+    Returns:
+        ``True`` when the source is available, ``False`` when cloning fails.
+    """
     if os.path.isdir("tdesktop"):
         logger.warning("La directory tdesktop esiste già. Saltando il clone...")
         return True
 
-    logger.info(
-        "Clonazione source code di Telegram Desktop in corso (alcuni minuti)..."
-    )
+    logger.info("Clonazione source code di Telegram Desktop in corso (alcuni minuti)...")
     try:
         run_command(["git", "clone", "--recursive", TDESKTOP_REPO])
         logger.info("✓ Source code clonato con successo")
@@ -168,13 +243,20 @@ def clone_telegram_source():
         return False
 
 
-def verify_build_output(binary_path):
-    """Controlla il binario compilato e ne copia una versione in telegram_output."""
+def verify_build_output(binary_path: str) -> bool:
+    """Verify the compiled binary and copy it to ``telegram_output``.
+
+    Args:
+        binary_path: Expected path of the compiled Telegram binary.
+
+    Returns:
+        ``True`` when the binary exists; copying is best-effort.
+    """
     if not os.path.isfile(binary_path):
         logger.warning("Binary non trovato: %s", binary_path)
         return False
 
-    file_size = os.path.getsize(binary_path) / (1024**2)  # MB
+    file_size = os.path.getsize(binary_path) / (1024**2)
     mod_time = datetime.fromtimestamp(os.path.getmtime(binary_path))
 
     logger.info("✓ Binary trovato: %s", binary_path)
@@ -190,39 +272,74 @@ def verify_build_output(binary_path):
         logger.info("✓ Binary copiato in: %s", output_path)
     except OSError as exc:
         logger.warning("Impossibile copiare binary: %s", exc)
-    return True  # la copia è facoltativa
+    return True
 
 
-def _log_image_size(image_info, label):
-    size = image_info.get('Size', 0) / (1024**3)  # GB
+def _log_image_size(image_info: dict[str, Any], label: str) -> None:
+    """Log a Docker image size in gigabytes.
+
+    Args:
+        image_info: Metadata returned by ``docker inspect``.
+        label: Description printed before the value.
+    """
+    size = image_info.get("Size", 0) / (1024**3)
     logger.info("  %s: %.2fGB", label, size)
 
 
-def _report_existing_image(image_name):
-    """Logga l'immagine già presente; False se manca o non è leggibile."""
+def _report_existing_image(image_name: str) -> bool:
+    """Report an existing image, or indicate that it must be built.
+
+    Args:
+        image_name: Image tag to inspect.
+
+    Returns:
+        ``True`` when the image is present and readable.
+    """
     if not docker_image_exists(image_name):
         return False
     image_info = get_docker_image_info(image_name)
     if not image_info:
         return False
     logger.info("✓ Immagine Docker esiste già: %s", image_name)
-    logger.info("  Creata: %s", image_info.get('Created', 'unknown'))
+    logger.info("  Creata: %s", image_info.get("Created", "unknown"))
     _log_image_size(image_info, "Dimensione")
     return True
 
 
-def _docker_build(image_name, dockerfile_path):
-    run_command([
-        "docker", "build",
-        "--progress", "plain",
-        "--build-arg", "BUILDKIT_INLINE_CACHE=1",
-        "-t", image_name,
-        dockerfile_path,
-    ])
+def _docker_build(image_name: str, dockerfile_path: str) -> None:
+    """Build a Docker image from the given context.
+
+    Args:
+        image_name: Tag assigned to the new image.
+        dockerfile_path: Build context path.
+
+    Returns:
+        None.
+
+    Raises:
+        subprocess.CalledProcessError: When the build fails.
+    """
+    run_command(
+        [
+            "docker", "build",
+            "--progress", "plain",
+            "--build-arg", "BUILDKIT_INLINE_CACHE=1",
+            "-t", image_name,
+            dockerfile_path,
+        ]
+    )
 
 
-def _build_image_and_report(image_name, dockerfile_path):
-    """Costruisce l'immagine e ne logga la dimensione; False se la build fallisce."""
+def _build_image_and_report(image_name: str, dockerfile_path: str) -> bool:
+    """Build the image and log its final size.
+
+    Args:
+        image_name: Tag assigned to the new image.
+        dockerfile_path: Build context path.
+
+    Returns:
+        ``True`` on success, ``False`` when the build fails.
+    """
     try:
         _docker_build(image_name, dockerfile_path)
     except subprocess.CalledProcessError as exc:
@@ -236,8 +353,15 @@ def _build_image_and_report(image_name, dockerfile_path):
     return True
 
 
-def build_docker_image(force_rebuild=False):
-    """Costruisce l'immagine Docker di build, se manca o se richiesto."""
+def build_docker_image(force_rebuild: bool = False) -> bool:
+    """Build the Docker build image when missing or explicitly requested.
+
+    Args:
+        force_rebuild: Rebuild even when a local image already exists.
+
+    Returns:
+        ``True`` when the image is available.
+    """
     dockerfile_path = "tdesktop/Telegram/build/docker/centos_env"
     image_name = "tdesktop:centos_env"
 
@@ -252,40 +376,66 @@ def build_docker_image(force_rebuild=False):
     return _build_image_and_report(image_name, dockerfile_path)
 
 
-def _resolve_cpus(cpus):
-    """CPU richieste (limitate a quelle disponibili) e CPU disponibili."""
+def _resolve_cpus(cpus: str) -> tuple[int, int]:
+    """Cap requested CPUs to the number available.
+
+    Args:
+        cpus: Requested CPU count, optionally suffixed with ``+``.
+
+    Returns:
+        Requested (capped) and available CPU counts.
+    """
     available = get_system_cpus()
-    return min(int(cpus.rstrip('+')), available), available
+    return min(int(cpus.rstrip("+")), available), available
 
 
-def run_build(apiid, apihash, options=DEFAULT_OPTIONS):
-    """Avvia la build di Telegram Desktop nel container."""
+def run_build(
+    apiid: str,
+    apihash: str,
+    options: BuildOptions = DEFAULT_OPTIONS,
+) -> bool:
+    """Run the Telegram Desktop build inside Docker.
+
+    Args:
+        apiid: Raw Telegram API ID input.
+        apihash: Raw Telegram API hash input.
+        options: Container limits and extra CMake flags.
+
+    Returns:
+        ``True`` when the build command succeeds.
+    """
     credentials = _validated_credentials(apiid, apihash)
     if credentials is None:
         return False
-    apiid, apihash = credentials
+    valid_id, valid_hash = credentials
 
     cwd = os.getcwd()
     cpus = _resolve_cpus(options.cpus)
-    _log_build_config(apiid, apihash, options.memory_limit, cpus)
+    _log_build_config(valid_id, valid_hash, options.memory_limit, cpus)
     try:
-        cmake_flags = _cmake_flags(apiid, apihash, cpus[0], options.extra_flags)
+        cmake_flags = _cmake_flags(valid_id, valid_hash, cpus[0], options.extra_flags)
         run_command(
             _docker_run_command(cwd, cpus[0], options.memory_limit, cmake_flags)
         )
         logger.info("✓ Build completata con successo")
 
         verify_build_output(os.path.join(cwd, "tdesktop/out/Release/Telegram"))
-        return True  # la build è riuscita anche se l'output non è verificabile
-
+        return True
     except subprocess.CalledProcessError as exc:
         logger.exception("✗ Errore build (exit code %s)", exc.returncode)
         logger.error("Controlla l'output di Docker sopra per dettagli.")
         return False
 
 
-def handle_source_download():
-    """Scarica il sorgente o ne modifica il limite di account."""
+def handle_source_download() -> None:
+    """Download the source or patch its account limit interactively.
+
+    Returns:
+        None.
+
+    Raises:
+        SystemExit: With code 1 when a required step fails.
+    """
     if ask_yes_no(
         "Scaricare Telegram Desktop source? (digitare 'n' se la possedete già) [Y/n]: "
     ):
@@ -299,8 +449,15 @@ def handle_source_download():
             sys.exit(1)
 
 
-def _ask_advanced_options(options):
-    """Chiede memoria, CPU e flag CMake; Invio conserva il valore proposto."""
+def _ask_advanced_options(options: BuildOptions) -> BuildOptions:
+    """Ask for memory, CPU and extra CMake flags.
+
+    Args:
+        options: Current values used as defaults.
+
+    Returns:
+        Updated build options.
+    """
     if not ask_yes_no("Mostrare opzioni avanzate? [y/N]: ", default=False):
         return options
     return BuildOptions(
@@ -315,8 +472,22 @@ def _ask_advanced_options(options):
     )
 
 
-def handle_docker_build(force_rebuild=False, options=DEFAULT_OPTIONS):
-    """Costruisce l'immagine e lancia la build chiedendo i dati all'utente."""
+def handle_docker_build(
+    force_rebuild: bool = False,
+    options: BuildOptions = DEFAULT_OPTIONS,
+) -> None:
+    """Build the image and launch the build with interactive credentials.
+
+    Args:
+        force_rebuild: Rebuild the image even when present.
+        options: Container limits and extra CMake flags.
+
+    Returns:
+        None.
+
+    Raises:
+        SystemExit: With code 1 when the image or the build fails.
+    """
     if not build_docker_image(force_rebuild=force_rebuild):
         sys.exit(1)
 
@@ -331,8 +502,12 @@ def handle_docker_build(force_rebuild=False, options=DEFAULT_OPTIONS):
         sys.exit(1)
 
 
-def parse_args():
-    """Legge gli argomenti da riga di comando."""
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments.
+
+    Returns:
+        Namespace with build and logging options.
+    """
     parser = argparse.ArgumentParser(
         description="Build custom Telegram Desktop with multi-account support"
     )
@@ -350,8 +525,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def log_banner(log_file):
-    """Scrive l'intestazione con versione e informazioni di sistema."""
+def log_banner(log_file: str) -> None:
+    """Write the banner with version and system information.
+
+    Args:
+        log_file: Path of the active log file.
+    """
     logger.info("=" * 80)
     logger.info("Telegram Desktop Multi-Account Builder - v1.3.0")
     logger.info("=" * 80)
@@ -361,8 +540,12 @@ def log_banner(log_file):
     logger.info("")
 
 
-def main():
-    """Punto di ingresso del builder."""
+def main() -> None:
+    """Run the interactive builder workflow.
+
+    Returns:
+        None.
+    """
     args = parse_args()
     log_banner(setup_logging(args.log_dir))
 
