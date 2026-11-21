@@ -57,6 +57,12 @@ ALLOWED_COMMANDS = frozenset(
     }
 )
 
+# Solo queste opzioni raggiungono il runner di processi. Qualsiasi altra
+# opzione (compresa una richiesta di shell) viene rifiutata prima dell'esecuzione.
+ALLOWED_OPTIONS = frozenset(
+    {"capture_output", "env", "input", "stderr", "stdout", "text", "timeout"}
+)
+
 
 def run_command(cmd: list[str], **kwargs: Any) -> CompletedCommand:
     """Run a whitelisted command by absolute path, never through a shell.
@@ -73,13 +79,14 @@ def run_command(cmd: list[str], **kwargs: Any) -> CompletedCommand:
 
     Raises:
         FileNotFoundError: When the executable is not allowed or cannot be resolved.
-        ValueError: When a shell is explicitly requested.
+        ValueError: When an option outside ``ALLOWED_OPTIONS`` is requested.
         CommandError: When the command exits non-zero.
     """
     if not cmd or cmd[0] not in ALLOWED_COMMANDS:
         raise FileNotFoundError(f"Comando non consentito: {cmd[0] if cmd else ''}")
-    if "shell" in kwargs:
-        raise ValueError("shell non consentito")
+    unsupported = set(kwargs) - ALLOWED_OPTIONS
+    if unsupported:
+        raise ValueError(f"opzioni non consentite: {sorted(unsupported)}")
     executable = shutil.which(cmd[0])
     if executable is None or not PurePosixPath(executable).is_absolute():
         raise FileNotFoundError(f"Comando non trovato: {cmd[0]}")

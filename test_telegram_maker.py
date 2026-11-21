@@ -383,11 +383,12 @@ class TestRunCommandExec(unittest.TestCase):
         run.assert_called_once_with(
             ["/usr/bin/docker", "ps"], check=True, text=True
         )
-        # Nessun comando fuori whitelist e nessuna shell possono arrivare al runner.
+        # Nessun comando fuori whitelist e nessuna opzione non consentita
+        # possono arrivare al runner.
         with self.assertRaises(FileNotFoundError):
             run_command(["sh", "-c", "echo injection"])
         with self.assertRaises(ValueError):
-            run_command(["docker", "ps"], shell=True)
+            run_command(["docker", "ps"], interactive=True)
         self.assertEqual(run.call_count, 1)
 
 
@@ -975,9 +976,11 @@ class CommandRunnerTests(unittest.TestCase):
         self.assertEqual(actions[1], (cr.os.POSIX_SPAWN_DUP2, 9, 2))
 
     def test_spawn_uses_given_environment(self):
-        with patch.object(cr.os, "posix_spawn", return_value=321) as spawn:
-            self.assertEqual(cr._spawn(["/bin/echo"], [], {"A": "B"}), 321)
-        self.assertEqual(spawn.call_args.args[2], {"A": "B"})
+        with patch.object(cr.os, "fork", return_value=0, create=True), patch.object(
+            cr.os, "execve"
+        ) as execve:
+            cr._spawn(["/bin/echo"], [], {"A": "B"})
+        self.assertEqual(execve.call_args.args[2], {"A": "B"})
 
     def test_make_result_decodes_chunks(self):
         readers = {10: [b"ciao ", b"mondo"], 11: [b"errore"]}
@@ -989,7 +992,7 @@ class CommandRunnerTests(unittest.TestCase):
     def test_run_with_capture_and_stdin(self):
         pipes = iter([(40, 41), (42, 43), (44, 45)])
         with patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)), patch.object(
-            cr.os, "posix_spawn", return_value=777
+            cr.os, "fork", return_value=777, create=True
         ) as spawn, patch.object(cr.os, "waitpid", return_value=(777, 0)), patch.object(
             cr.os, "write"
         ) as write, patch.object(cr.os, "close"), patch.object(
@@ -1006,7 +1009,7 @@ class CommandRunnerTests(unittest.TestCase):
         thread.assert_called_once()
 
     def test_run_raises_command_error(self):
-        with patch.object(cr.os, "posix_spawn", return_value=777), patch.object(
+        with patch.object(cr.os, "fork", return_value=777, create=True), patch.object(
             cr.os, "waitpid", return_value=(777, 3 << 8)
         ), self.assertRaises(CommandError) as raised:
             cr.run(["/bin/false"], check=True)
@@ -1014,7 +1017,7 @@ class CommandRunnerTests(unittest.TestCase):
 
     def test_run_raises_command_timeout(self):
         with patch.object(
-            cr.os, "posix_spawn", return_value=777
+            cr.os, "fork", return_value=777, create=True
         ), patch.object(
             cr.os, "waitpid", return_value=(777, 15)
         ), patch.object(
