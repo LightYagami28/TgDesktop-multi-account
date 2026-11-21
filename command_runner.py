@@ -206,10 +206,13 @@ def _spawn(
     executable = argv[0]
     pid = os.fork()
     if pid == 0:
+        # Il figlio non deve mai tornare al chiamante: in caso di errore di
+        # redirezione o di exec esce con 127 invece di eseguire il codice del
+        # genitore. OSError e ValueError coprono le cause realistiche di exec.
         try:
             _apply_actions(actions)
             os.execve(executable, child_argv, child_env)
-        except BaseException:
+        except (OSError, ValueError):
             os._exit(127)
     return pid
 
@@ -223,8 +226,8 @@ def _make_result(
 ) -> CompletedCommand:
     """Costruisce il risultato decodificando i frammenti raccolti."""
     chunks = {
-        "stdout": readers.get(out_read, []),
-        "stderr": readers.get(err_read, []),
+        "stdout": readers[out_read] if out_read is not None else [],
+        "stderr": readers[err_read] if err_read is not None else [],
     }
     result = CompletedCommand(args=list(argv), returncode=returncode, chunks=chunks)
     result.stdout = result._text("stdout")
@@ -282,7 +285,7 @@ def run(
         # Il figlio ha una copia della stdin: il genitore chiude solo la sua.
         _close(in_read)
 
-    if in_write is not None:
+    if in_write is not None and input is not None:
         payload = input.encode("utf-8") if isinstance(input, str) else input
         # Se il comando chiude la stdin prima di leggerla, il suo codice di
         # uscita viene comunque valutato da ``check``.

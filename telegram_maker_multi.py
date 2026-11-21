@@ -33,6 +33,8 @@ from command_runner import (
     DEVNULL,
     CommandError,
     CompletedCommand,
+)
+from command_runner import (
     run as run_process,
 )
 from source_patch import modify_max_accounts
@@ -150,7 +152,10 @@ def get_docker_image_info(image_name: str) -> dict[str, Any] | None:
         result = run_command(
             ["docker", "inspect", image_name], capture_output=True, text=True
         )
-        return json.loads(result.stdout)[0]
+        first = json.loads(result.stdout)[0]
+        if not isinstance(first, dict):
+            return None
+        return first
     except (CommandError, json.JSONDecodeError, IndexError):
         return None
 

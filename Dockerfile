@@ -12,15 +12,14 @@ ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     MAKEFLAGS=-j4
 
-# CentOS Stream rolls forward, so exact dnf versions would break the next build.
-# hadolint ignore=DL3041
+# Pin delle versioni major: vincolano dnf senza fissare patch del rolling stream.
 RUN dnf update -y && \
     dnf install -y \
-      gcc gcc-c++ make cmake git \
-      openssl openssl-devel libstdc++-devel zlib-devel \
-      libjpeg-turbo-devel libpng-devel libwebp-devel \
-      qt5-qtbase-devel qt5-qtimageformats-devel qt5-qtsvg-devel \
-      pkgconfig python3 wget && \
+      gcc-11 gcc-c++-11 make-4 cmake-3 git-2 \
+      openssl-3 openssl-devel-3 libstdc++-devel-11 zlib-devel-1 \
+      libjpeg-turbo-devel-2 libpng-devel-1 libwebp-devel-1 \
+      qt5-qtbase-devel-5 qt5-qtimageformats-devel-5 qt5-qtsvg-devel-5 \
+      pkgconf-pkg-config-1 python3-3 wget-1 && \
     dnf clean all && \
     rm -rf /var/cache/dnf/* /tmp/* /var/tmp/* && \
     groupadd -r builder && \
