@@ -28,3 +28,10 @@ The project builds a Linux Telegram Desktop variant from upstream source using D
 - Inclusione di dipendenze Python esterne a runtime (il nucleo resta pura libreria standard).
 
 These proposals do not imply implementation or support today. The macOS/Linux platform alternatives in `SPEC.md` remain design questions unless the specification says otherwise.
+
+## Verifica 2026-11-21
+
+Rianalisi senza soppressioni completata. Comandi: `py -3 -m unittest -v test_telegram_maker.py`
+(75 test superati) e `py -3 -m py_compile telegram_maker_multi.py validation.py source_patch.py`
+(exit 0). Rimosso il commento di soppressione bandit dal test: l'eccezione finta ora
+usa il modulo subprocess già esportato dal codice di produzione.
