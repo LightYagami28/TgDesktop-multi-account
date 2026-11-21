@@ -194,27 +194,15 @@ def _apply_actions(actions: list[tuple[Any, ...]]) -> None:
 def _spawn(
     argv: Sequence[str], actions: list[tuple[Any, ...]], env: Mapping[str, str] | None
 ) -> int:
-    """Avvia il figlio con fork+exec: nessuna shell e argomenti separati.
+    """Avvia il figlio con posix_spawn: nessuna shell e argomenti separati.
 
     L'eseguibile e' gia' convalidato come percorso assoluto da ``_validate`` e
-    proviene dalla whitelist del chiamante. Il figlio applica le redirezioni e
-    sostituisce la propria immagine con ``execve``: nessuna stringa viene
-    interpretata e il ritorno a Python in caso di errore termina con 127.
+    proviene dalla whitelist del chiamante. Le redirezioni sono applicate dal
+    kernel prima dell'esecuzione, quindi nel figlio non corre codice Python e
+    non esiste un ritorno al chiamante in caso di errore di avvio.
     """
     child_env = dict(os.environ if env is None else env)
-    child_argv = list(argv)
-    executable = argv[0]
-    pid = os.fork()
-    if pid == 0:
-        # Il figlio non deve mai tornare al chiamante: in caso di errore di
-        # redirezione o di exec esce con 127 invece di eseguire il codice del
-        # genitore. OSError e ValueError coprono le cause realistiche di exec.
-        try:
-            _apply_actions(actions)
-            os.execve(executable, child_argv, child_env)
-        except (OSError, ValueError):
-            os._exit(127)
-    return pid
+    return os.posix_spawn(argv[0], list(argv), child_env, file_actions=actions)
 
 
 def _make_result(
