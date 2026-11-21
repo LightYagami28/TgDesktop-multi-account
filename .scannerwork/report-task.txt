@@ -1,6 +1,0 @@
-organization=lightyagami28
-projectKey=LightYagami28_TgDesktop-multi-account
-serverUrl=https://sonarcloud.io
-dashboardUrl=https://sonarcloud.io/dashboard?id=LightYagami28_TgDesktop-multi-account
-ceTaskId=AaH-bbC6esx936QXCopx
-ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AaH-bbC6esx936QXCopx

@@ -1,17 +1,0 @@
-
-¿µ"Return a readable preview of the extra CMake flags.
-
-    Args:
-        extra_flags: Raw flag string.
-
-    Returns:
-        The flags, or ``"vuoto"`` when none are configured.
-    "str
-"vuoto"strextra_flagsT T(""S)
-'
-] ](%"
-__bool__*:BboolH&"$
-] ](% *] ](2]& ](*"
-] ](2"
-] ](2"$*
-] ](2*0E:\repo\TgDesktop-multi-account\build_helpers.py

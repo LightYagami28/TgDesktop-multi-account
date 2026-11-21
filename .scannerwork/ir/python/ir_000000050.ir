@@ -1,57 +1,0 @@
-
-"MAKEFLAGS=-j{cpus}"str
-"--cpus"str
-"-v"str
-"docker"str
-
-0int
-"run"str
-"--rm"str
-F="/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh"str
-"tdesktop:centos_env"str
-	"-i"str
-"-e"str
-á×"Build the docker run argument list.
-
-    Args:
-        cwd: Host directory mounted into the container.
-        cpus: CPU limit for the container.
-        memory_limit: Memory limit for the container.
-        cmake_flags: Flags forwarded to the build script.
-
-    Returns:
-        Argument list for ``docker run`` (never a shell string).
-    "str
-	"DEBUG=1"str
-""{cwd}:/usr/src/tdesktop"str
-
-"-m"strcwd
-ˆ ˆ(cpus
-‰ ‰(memory_limit
-Š Š(cmake_flags
-‹ ‹(list"Ì0
-.
-
-› ›("#dependent-value#*:Bstr%
-#
-
-¡ ¡("#unaryop *#2*:)
-'
-
-˜ ¢("#unknown-value#Blist(
-&
-
-˜ ¢("
-#is-exact#:Bbool
-
-
-˜ ¢("
-#assume#::
-8
-
-˜ ¢("#set-field# __collection_size:Bint-
-+
-
-˜ ¢("?python-unknown?*Blist
-
-˜ ¢(*0E:\repo\TgDesktop-multi-account\build_helpers.py

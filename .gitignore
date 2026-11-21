@@ -25,3 +25,5 @@ tdesktop/
 *.pem
 *.key
 coverage.xml
+
+.scannerwork/
