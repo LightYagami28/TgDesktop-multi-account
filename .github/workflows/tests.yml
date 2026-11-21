@@ -24,6 +24,34 @@ jobs:
       - run: python -m unittest -v test_telegram_maker.py
       - run: python -m py_compile telegram_maker_multi.py validation.py source_patch.py
 
+  static-analysis:
+    name: Analisi statica
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Installa strumenti
+        run: |
+          set -Eeuo pipefail
+          trap 'echo "comando fallito alla riga $LINENO: $BASH_COMMAND" >&2' ERR
+          trap 'echo "installazione strumenti terminata"' EXIT
+          python -m pip install --quiet --only-binary :all: \
+            bandit==1.9.4 mypy==2.4.1 pip-audit==2.10.1 ruff==0.17.6
+      - name: Ruff
+        run: ruff check .
+      - name: Bandit
+        run: bandit -q -r .
+      - name: Mypy
+        # I test usano monkeypatch dinamico (cr.os, cr.time) non tipizzabile in strict.
+        run: mypy --strict build_helpers.py command_runner.py source_patch.py telegram_maker_multi.py validation.py
+      - name: Pip-audit
+        run: pip-audit
+
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
@@ -39,6 +67,9 @@ jobs:
           python-version: "3.14"
       - name: Test con copertura
         run: |
+          set -Eeuo pipefail
+          trap 'echo "comando fallito alla riga $LINENO: $BASH_COMMAND" >&2' ERR
+          trap 'echo "test con copertura terminati"' EXIT
           python -m pip install --quiet --only-binary :all: coverage==7.17.2
           python -m coverage run --source=. --omit=test_*.py -m unittest -v test_telegram_maker.py
           python -m coverage xml -o coverage.xml

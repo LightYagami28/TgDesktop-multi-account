@@ -194,24 +194,15 @@ def _apply_actions(actions: list[tuple[Any, ...]]) -> None:
 def _spawn(
     argv: Sequence[str], actions: list[tuple[Any, ...]], env: Mapping[str, str] | None
 ) -> int:
-    """Avvia il figlio con fork+exec: nessuna shell e argomenti separati.
+    """Avvia il figlio con posix_spawn: nessuna shell e argomenti separati.
 
     L'eseguibile e' gia' convalidato come percorso assoluto da ``_validate`` e
-    proviene dalla whitelist del chiamante. Il figlio applica le redirezioni e
-    sostituisce la propria immagine con ``execve``: nessuna stringa viene
-    interpretata e il ritorno a Python in caso di errore termina con 127.
+    proviene dalla whitelist del chiamante. Le redirezioni sono applicate dal
+    kernel prima dell'esecuzione, quindi nel figlio non corre codice Python e
+    non esiste un ritorno al chiamante in caso di errore di avvio.
     """
     child_env = dict(os.environ if env is None else env)
-    child_argv = list(argv)
-    executable = argv[0]
-    pid = os.fork()
-    if pid == 0:
-        try:
-            _apply_actions(actions)
-            os.execve(executable, child_argv, child_env)
-        except BaseException:
-            os._exit(127)
-    return pid
+    return os.posix_spawn(argv[0], list(argv), child_env, file_actions=actions)
 
 
 def _make_result(
@@ -223,8 +214,8 @@ def _make_result(
 ) -> CompletedCommand:
     """Costruisce il risultato decodificando i frammenti raccolti."""
     chunks = {
-        "stdout": readers.get(out_read, []),
-        "stderr": readers.get(err_read, []),
+        "stdout": readers[out_read] if out_read is not None else [],
+        "stderr": readers[err_read] if err_read is not None else [],
     }
     result = CompletedCommand(args=list(argv), returncode=returncode, chunks=chunks)
     result.stdout = result._text("stdout")
@@ -282,7 +273,7 @@ def run(
         # Il figlio ha una copia della stdin: il genitore chiude solo la sua.
         _close(in_read)
 
-    if in_write is not None:
+    if in_write is not None and input is not None:
         payload = input.encode("utf-8") if isinstance(input, str) else input
         # Se il comando chiude la stdin prima di leggerla, il suo codice di
         # uscita viene comunque valutato da ``check``.

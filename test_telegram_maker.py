@@ -421,7 +421,7 @@ class TestDockerQueries(unittest.TestCase):
 
     def test_image_info_unreadable(self):
         """JSON non valido, lista vuota o errore restituiscono None."""
-        for result in (completed("non json"), completed("[]")):
+        for result in (completed("non json"), completed("[]"), completed("[42]")):
             with patch.object(tm, "run_command", return_value=result):
                 self.assertIsNone(tm.get_docker_image_info("img"))
         with patch.object(tm, "run_command", side_effect=FAILED):
@@ -976,11 +976,12 @@ class CommandRunnerTests(unittest.TestCase):
         self.assertEqual(actions[1], (cr.os.POSIX_SPAWN_DUP2, 9, 2))
 
     def test_spawn_uses_given_environment(self):
-        with patch.object(cr.os, "fork", return_value=0, create=True), patch.object(
-            cr.os, "execve"
-        ) as execve:
-            cr._spawn(["/bin/echo"], [], {"A": "B"})
-        self.assertEqual(execve.call_args.args[2], {"A": "B"})
+        with patch.object(cr.os, "posix_spawn", return_value=777) as spawn:
+            result = cr._spawn(["/bin/echo"], [], {"A": "B"})
+        self.assertEqual(result, 777)
+        self.assertEqual(spawn.call_args.args[2], {"A": "B"})
+        self.assertEqual(spawn.call_args.args[0], "/bin/echo")
+        self.assertEqual(spawn.call_args.kwargs["file_actions"], [])
 
     def test_make_result_decodes_chunks(self):
         readers = {10: [b"ciao ", b"mondo"], 11: [b"errore"]}
@@ -989,10 +990,16 @@ class CommandRunnerTests(unittest.TestCase):
         self.assertEqual(result.stderr, "errore")
         self.assertEqual(result.returncode, 0)
 
+    def test_make_result_without_capture(self):
+        readers = {10: [b"ciao"]}
+        result = cr._make_result(["/bin/echo"], readers, None, None, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "")
+
     def test_run_with_capture_and_stdin(self):
         pipes = iter([(40, 41), (42, 43), (44, 45)])
         with patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)), patch.object(
-            cr.os, "fork", return_value=777, create=True
+            cr.os, "posix_spawn", return_value=777
         ) as spawn, patch.object(cr.os, "waitpid", return_value=(777, 0)), patch.object(
             cr.os, "write"
         ) as write, patch.object(cr.os, "close"), patch.object(
@@ -1009,7 +1016,7 @@ class CommandRunnerTests(unittest.TestCase):
         thread.assert_called_once()
 
     def test_run_raises_command_error(self):
-        with patch.object(cr.os, "fork", return_value=777, create=True), patch.object(
+        with patch.object(cr.os, "posix_spawn", return_value=777), patch.object(
             cr.os, "waitpid", return_value=(777, 3 << 8)
         ), self.assertRaises(CommandError) as raised:
             cr.run(["/bin/false"], check=True)
@@ -1017,7 +1024,7 @@ class CommandRunnerTests(unittest.TestCase):
 
     def test_run_raises_command_timeout(self):
         with patch.object(
-            cr.os, "fork", return_value=777, create=True
+            cr.os, "posix_spawn", return_value=777
         ), patch.object(
             cr.os, "waitpid", return_value=(777, 15)
         ), patch.object(
