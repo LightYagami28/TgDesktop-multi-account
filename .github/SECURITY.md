@@ -30,9 +30,9 @@ We will respond within 48 hours and work on a fix immediately.
 ## Supported Versions
 
 | Version | Status | Support Ends |
-|---------|--------|-------------|
-| 1.3.0   | ✅ Current | 2027-08-17 |
-| 1.2.0   | ⚠️ EOL | 2026-08-17 |
+| --- | --- | --- |
+| 1.3.0 | ✅ Current | 2027-08-17 |
+| 1.2.0 | ⚠️ EOL | 2026-08-17 |
 
 ## Dependency Management
 

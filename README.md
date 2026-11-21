@@ -3,7 +3,8 @@
 [![Tests](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/tests.yml/badge.svg)](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/codeql-analysis.yml)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Tests Passing](https://img.shields.io/badge/tests-75%2F75%20passing-brightgreen)](tests/)
+[![Tests
+Passing](https://img.shields.io/badge/tests-75%2F75%20passing-brightgreen)](tests/)
 [![Docker](https://img.shields.io/badge/Docker-build%20ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -53,7 +54,7 @@ Answer the prompts (`[Y/n]`: Enter accepts the default). When asked, type the
 API ID and API hash.
 
 | Option | Default | Meaning |
-|--------|---------|---------|
+| -------- | --------- | --------- |
 | `--force-rebuild` | off | Rebuild the Docker image even if it exists |
 | `--memory` | `4g` | Container memory limit |
 | `--cpus` | `2` | CPU count (capped to the available ones) |
@@ -97,8 +98,7 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md) (Telegram:
 
 Apache License 2.0, see [LICENSE](LICENSE).
 
-
-## Documentation
+## Documentazione
 
 - [Documentation index](docs/README.md)
 - [Architecture](ARCHITECTURE.md)

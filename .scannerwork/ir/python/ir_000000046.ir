@@ -1,0 +1,12 @@
+
+tk"deb [arch={arch} signed-by={DOCKER_KEYRING}] https://download.docker.com/linux/ubuntu {codename} stable\n"str
+ðæ"Build the signed Docker apt repository line.
+
+    Args:
+        codename: Ubuntu release codename.
+        arch: Debian architecture reported by dpkg.
+
+    Returns:
+        A single ``deb`` line using the dedicated keyring.
+    "strcodename6 6(#arch6% 6(."
+@ C(*0E:\repo\TgDesktop-multi-account\build_helpers.py

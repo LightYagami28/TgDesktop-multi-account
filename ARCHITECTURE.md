@@ -1,6 +1,9 @@
 # Architecture
 
-This repository builds a Telegram Desktop variant with multiple-account support. The documented workflow is a source patch and validation pipeline around an upstream `tdesktop/` checkout, followed by a Linux build in Docker and artifacts under `telegram_output/Telegram`.
+This repository builds a Telegram Desktop variant with multiple-account support.
+The documented workflow is a source patch and validation pipeline around an
+upstream `tdesktop/` checkout, followed by a Linux build in Docker and artifacts
+under `telegram_output/Telegram`.
 
 ```text
 +--------------------------------------------------------------+
@@ -26,7 +29,7 @@ This repository builds a Telegram Desktop variant with multiple-account support.
 - `test_telegram_maker.py` contains the Python unit tests.
 
 | Modulo | File | Responsabilità |
-|---|---|---|
+| --- | --- | --- |
 | CLI / Core | `telegram_maker_multi.py` | Entrypoint principale, orchestrazione creazione profili, mascheramento credenziali nei log. |
 | Validazione | `validation.py` | Validazione rigorosa parametri (VoIP count, API ID, API Hash) e confinamento cartelle (`_confined_log_path`). |
 | Patching | `source_patch.py` | Applicazione modifiche ai file sorgente upstream di Telegram Desktop. |
@@ -34,4 +37,6 @@ This repository builds a Telegram Desktop variant with multiple-account support.
 
 ## Boundaries
 
-The repository automates the build; it does not provide a hosted Telegram service. Build output and upstream source are generated inputs/outputs, not documentation sources. See `SPEC.md` for design decisions and status notes.
+The repository automates the build; it does not provide a hosted Telegram
+service. Build output and upstream source are generated inputs/outputs, not
+documentation sources. See `SPEC.md` for design decisions and status notes.
