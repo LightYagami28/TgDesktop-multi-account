@@ -2,8 +2,6 @@
 import json
 import os
 
-# subprocess fornisce solo eccezioni e risultati finti: nessun comando viene eseguito.
-import subprocess  # nosec B404
 import tempfile
 import unittest
 from contextlib import contextmanager
@@ -22,7 +20,7 @@ from validation import (
     validate_voip_count,
 )
 
-FAILED = subprocess.CalledProcessError(1, ["docker"])
+FAILED = tm.subprocess.CalledProcessError(1, ["docker"])
 
 
 @contextmanager
