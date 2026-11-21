@@ -58,30 +58,45 @@ class CompletedCommand:
         return data.decode("utf-8", errors="replace")
 
 
-def _close(fd: int | None) -> None:
-    if fd is not None:
-        try:
-            os.close(fd)
-        except OSError:
-            pass
+def _close(fd: int | None) -> bool:
+    """Chiude un descrittore; restituisce False se era gia' chiuso."""
+    if fd is None:
+        return False
+    try:
+        os.close(fd)
+    except OSError:
+        return False
+    return True
+
+
+def _write(fd: int, payload: bytes) -> bool:
+    """Scrive sulla pipe; restituisce False se il comando ha chiuso la stdin."""
+    try:
+        os.write(fd, payload)
+    except BrokenPipeError:
+        return False
+    return True
+
+
+def _signal(pid: int, sig: int) -> bool:
+    """Invia un segnale; restituisce False se il processo e' gia' uscito."""
+    try:
+        os.kill(pid, sig)
+    except ProcessLookupError:
+        return False
+    return True
 
 
 def _terminate(pid: int) -> int:
     """Termina il processo e restituisce il suo stato di uscita."""
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
+    _signal(pid, signal.SIGTERM)
     deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
         done, status = os.waitpid(pid, os.WNOHANG)
         if done:
             return status
         time.sleep(0.02)
-    try:
-        os.kill(pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
+    _signal(pid, signal.SIGKILL)
     _, status = os.waitpid(pid, 0)
     return status
 
@@ -198,12 +213,10 @@ def run(
 
     if in_write is not None:
         payload = input.encode("utf-8") if isinstance(input, str) else input
-        try:
-            os.write(in_write, payload)
-        except OSError:
-            pass
-        finally:
-            _close(in_write)
+        # Se il comando chiude la stdin prima di leggerla, il suo codice di
+        # uscita viene comunque valutato da ``check``.
+        _write(in_write, payload)
+        _close(in_write)
 
     # La raccolta deve partire prima dell'attesa: con output oltre la capacity
     # della pipe il figlio si bloccherebbe scrivendo e l'attesa non finirebbe.
