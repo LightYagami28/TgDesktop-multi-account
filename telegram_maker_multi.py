@@ -8,10 +8,9 @@ import logging
 import os
 import platform
 import shutil
-import subprocess
 import sys
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from build_helpers import (
@@ -30,34 +29,62 @@ from build_helpers import (
     _validated_credentials,
     docker_apt_source,
 )
+from command_runner import (
+    DEVNULL,
+    CommandError,
+    CompletedCommand,
+    run as run_process,
+)
 from source_patch import modify_max_accounts
 from validation import ask_yes_no
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+# Solo questi eseguibili possono essere avviati: gli input dell'utente sono
+# convalidati dai moduli dedicati e restano sempre argomenti separati.
+ALLOWED_COMMANDS = frozenset(
+    {
+        "apt",
+        "chmod",
+        "curl",
+        "docker",
+        "dpkg",
+        "git",
+        "install",
+        "sudo",
+        "systemctl",
+        "tee",
+    }
+)
 
-def run_command(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-    """Run a command by resolved absolute path, never through a shell.
+
+def run_command(cmd: list[str], **kwargs: Any) -> CompletedCommand:
+    """Run a whitelisted command by absolute path, never through a shell.
 
     User-supplied values are validated before they reach an argument list,
     so no string is ever interpreted by a shell.
 
     Args:
-        cmd: Executable name followed by its separate arguments.
-        **kwargs: Extra keyword arguments forwarded to ``subprocess.run``.
+        cmd: Whitelisted executable name followed by its separate arguments.
+        **kwargs: Extra keyword arguments forwarded to the process runner.
 
     Returns:
-        The completed process.
+        The completed command.
 
     Raises:
-        FileNotFoundError: When the executable cannot be resolved.
-        subprocess.CalledProcessError: When the command exits non-zero.
+        FileNotFoundError: When the executable is not allowed or cannot be resolved.
+        ValueError: When a shell is explicitly requested.
+        CommandError: When the command exits non-zero.
     """
+    if not cmd or cmd[0] not in ALLOWED_COMMANDS:
+        raise FileNotFoundError(f"Comando non consentito: {cmd[0] if cmd else ''}")
+    if "shell" in kwargs:
+        raise ValueError("shell non consentito")
     executable = shutil.which(cmd[0])
-    if executable is None:
+    if executable is None or not PurePosixPath(executable).is_absolute():
         raise FileNotFoundError(f"Comando non trovato: {cmd[0]}")
     argv = [executable, *cmd[1:]]
-    return subprocess.run(*argv, check=True, **kwargs)
+    return run_process(argv, check=True, **kwargs)
 
 
 def setup_logging(log_dir: str = "tdesktop") -> str:
@@ -98,7 +125,7 @@ def docker_image_exists(image_name: str) -> bool:
             ["docker", "images", "-q", image_name], capture_output=True, text=True
         )
         return bool(result.stdout.strip())
-    except subprocess.CalledProcessError:
+    except CommandError:
         logger.exception("Failed to check Docker images")
         return False
 
@@ -117,7 +144,7 @@ def get_docker_image_info(image_name: str) -> dict[str, Any] | None:
             ["docker", "inspect", image_name], capture_output=True, text=True
         )
         return json.loads(result.stdout)[0]
-    except (subprocess.CalledProcessError, json.JSONDecodeError, IndexError):
+    except (CommandError, json.JSONDecodeError, IndexError):
         return None
 
 
@@ -142,7 +169,7 @@ def _add_docker_key() -> None:
         None.
 
     Raises:
-        subprocess.CalledProcessError: When any installation step fails.
+        CommandError: When any installation step fails.
     """
     key = run_command(
         ["curl", "-fsSL", "https://download.docker.com/linux/ubuntu/gpg"],
@@ -154,7 +181,7 @@ def _add_docker_key() -> None:
         ["sudo", "tee", DOCKER_KEYRING],
         input=key.stdout,
         text=True,
-        stdout=subprocess.DEVNULL,
+        stdout=DEVNULL,
     )
     run_command(["sudo", "chmod", "a+r", DOCKER_KEYRING])
 
@@ -166,7 +193,7 @@ def _add_docker_repo() -> None:
         None.
 
     Raises:
-        subprocess.CalledProcessError: When dpkg or tee fails.
+        CommandError: When dpkg or tee fails.
     """
     codename = platform.freedesktop_os_release().get("VERSION_CODENAME", "focal")
     arch = run_command(
@@ -176,7 +203,7 @@ def _add_docker_repo() -> None:
         ["sudo", "tee", DOCKER_SOURCE_FILE],
         input=docker_apt_source(codename, arch),
         text=True,
-        stdout=subprocess.DEVNULL,
+        stdout=DEVNULL,
     )
 
 
@@ -187,7 +214,7 @@ def _install_docker_ce() -> None:
         None.
 
     Raises:
-        subprocess.CalledProcessError: When apt or systemctl fails.
+        CommandError: When apt or systemctl fails.
     """
     logger.info("  • Installazione di Docker CE e avvio del daemon...")
     run_command(["sudo", "apt", "update"])
@@ -218,7 +245,7 @@ def install_dependencies() -> None:
 
         _install_docker_ce()
         logger.info("✓ Docker installato e avviato")
-    except subprocess.CalledProcessError as exc:
+    except CommandError as exc:
         logger.exception("✗ Errore installazione (exit code %s)", exc.returncode)
         sys.exit(1)
 
@@ -238,7 +265,7 @@ def clone_telegram_source() -> bool:
         run_command(["git", "clone", "--recursive", TDESKTOP_REPO])
         logger.info("✓ Source code clonato con successo")
         return True
-    except subprocess.CalledProcessError as exc:
+    except CommandError as exc:
         logger.exception("✗ Errore clone (exit code %s)", exc.returncode)
         return False
 
@@ -317,7 +344,7 @@ def _docker_build(image_name: str, dockerfile_path: str) -> None:
         None.
 
     Raises:
-        subprocess.CalledProcessError: When the build fails.
+        CommandError: When the build fails.
     """
     run_command(
         [
@@ -342,7 +369,7 @@ def _build_image_and_report(image_name: str, dockerfile_path: str) -> bool:
     """
     try:
         _docker_build(image_name, dockerfile_path)
-    except subprocess.CalledProcessError as exc:
+    except CommandError as exc:
         logger.exception("✗ Errore build Docker (exit code %s)", exc.returncode)
         return False
     logger.info("✓ Immagine Docker creata con successo")
@@ -421,7 +448,7 @@ def run_build(
 
         verify_build_output(os.path.join(cwd, "tdesktop/out/Release/Telegram"))
         return True
-    except subprocess.CalledProcessError as exc:
+    except CommandError as exc:
         logger.exception("✗ Errore build (exit code %s)", exc.returncode)
         logger.error("Controlla l'output di Docker sopra per dettagli.")
         return False

@@ -11,6 +11,7 @@ from typing import ClassVar
 from unittest.mock import mock_open, patch
 
 import telegram_maker_multi as tm
+from command_runner import CommandError
 from source_patch import modify_max_accounts
 from telegram_maker_multi import docker_apt_source, install_dependencies, run_command
 from validation import (
@@ -20,7 +21,7 @@ from validation import (
     validate_voip_count,
 )
 
-FAILED = tm.subprocess.CalledProcessError(1, ["docker"])
+FAILED = CommandError(1, ["docker"])
 
 
 @contextmanager
@@ -375,11 +376,19 @@ class TestRunCommandExec(unittest.TestCase):
 
     def test_full_path_no_shell(self):
         """Il comando parte con il percorso completo, check=True e senza shell."""
-        with patch("shutil.which", return_value="/usr/bin/docker"), patch(
-            "subprocess.run", return_value=completed()
+        with patch("shutil.which", return_value="/usr/bin/docker"), patch.object(
+            tm, "run_process", return_value=completed()
         ) as run:
             run_command(["docker", "ps"], text=True)
-        run.assert_called_once_with("/usr/bin/docker", "ps", check=True, text=True)
+        run.assert_called_once_with(
+            ["/usr/bin/docker", "ps"], check=True, text=True
+        )
+        # Nessun comando fuori whitelist e nessuna shell possono arrivare al runner.
+        with self.assertRaises(FileNotFoundError):
+            run_command(["sh", "-c", "echo injection"])
+        with self.assertRaises(ValueError):
+            run_command(["docker", "ps"], shell=True)
+        self.assertEqual(run.call_count, 1)
 
 
 class TestDockerQueries(unittest.TestCase):
