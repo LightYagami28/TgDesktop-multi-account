@@ -14,9 +14,10 @@ import selectors
 import signal
 import threading
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 DEVNULL = object()
 
@@ -136,6 +137,70 @@ def _collect(readers: dict[int, list[bytes]]) -> None:
         selector.close()
 
 
+def _validate(argv: Sequence[str], input: bytes | str | None, text: bool) -> None:
+    """Convalida gli argomenti prima di qualsiasi effetto collaterale."""
+    if not argv or not isinstance(argv, (list, tuple)):
+        raise ValueError("argv deve essere una lista non vuota")
+    if not PurePosixPath(argv[0]).is_absolute():
+        raise ValueError("l'eseguibile deve essere un percorso assoluto")
+    if isinstance(input, str) and not text:
+        raise TypeError("input str richiede text=True")
+    if not isinstance(input, (str, bytes, type(None))):
+        raise TypeError("input deve essere str, bytes o None")
+
+
+def _configure_streams(
+    actions: list[tuple[Any, ...]],
+    readers: dict[int, list[bytes]],
+    stdout: Any,
+    stderr: Any,
+    capture_output: bool,
+) -> tuple[int | None, int | None]:
+    """Prepara le pipe di output e restituisce i descrittori di lettura."""
+    out_read = err_read = None
+    for fd_no, target in ((1, stdout), (2, stderr)):
+        if capture_output and target is None:
+            read_fd, write_fd = os.pipe()
+            readers[read_fd] = []
+            if fd_no == 1:
+                out_read = read_fd
+            else:
+                err_read = read_fd
+            actions.append((os.POSIX_SPAWN_DUP2, write_fd, fd_no))
+            _close(write_fd)
+        elif target is DEVNULL:
+            actions.append((os.POSIX_SPAWN_OPEN, fd_no, os.devnull, os.O_WRONLY, 0))
+        elif target is not None:
+            actions.append((os.POSIX_SPAWN_DUP2, target, fd_no))
+    return out_read, err_read
+
+
+def _spawn(
+    argv: Sequence[str], actions: list[tuple[Any, ...]], env: Mapping[str, str] | None
+) -> int:
+    """Avvia il figlio con l'ambiente richiesto e le azioni sui descrittori."""
+    child_env = dict(os.environ if env is None else env)
+    return os.posix_spawn(argv[0], list(argv), child_env, file_actions=actions)
+
+
+def _make_result(
+    argv: Sequence[str],
+    readers: dict[int, list[bytes]],
+    out_read: int | None,
+    err_read: int | None,
+    returncode: int,
+) -> CompletedCommand:
+    """Costruisce il risultato decodificando i frammenti raccolti."""
+    chunks = {
+        "stdout": readers.get(out_read, []),
+        "stderr": readers.get(err_read, []),
+    }
+    result = CompletedCommand(args=list(argv), returncode=returncode, chunks=chunks)
+    result.stdout = result._text("stdout")
+    result.stderr = result._text("stderr")
+    return result
+
+
 def run(
     argv: Sequence[str],
     *,
@@ -169,44 +234,19 @@ def run(
         CommandTimeout: Se il comando supera ``timeout``.
         CommandError: Se ``check`` e' vero e il comando fallisce.
     """
-    if not argv or not isinstance(argv, (list, tuple)):
-        raise ValueError("argv deve essere una lista non vuota")
-    if not PurePosixPath(argv[0]).is_absolute():
-        raise ValueError("l'eseguibile deve essere un percorso assoluto")
-    if isinstance(input, str) and not text:
-        raise TypeError("input str richiede text=True")
-    if not isinstance(input, (str, bytes, type(None))):
-        raise TypeError("input deve essere str, bytes o None")
+    _validate(argv, input, text)
 
     actions: list[tuple[Any, ...]] = []
     readers: dict[int, list[bytes]] = {}
-    out_read = err_read = in_read = in_write = None
+    in_read = in_write = None
     try:
-        for fd_no, target in ((1, stdout), (2, stderr)):
-            if capture_output and target is None:
-                read_fd, write_fd = os.pipe()
-                readers[read_fd] = []
-                if fd_no == 1:
-                    out_read = read_fd
-                else:
-                    err_read = read_fd
-                actions.append((os.POSIX_SPAWN_DUP2, write_fd, fd_no))
-                _close(write_fd)
-            elif target is DEVNULL:
-                actions.append(
-                    (os.POSIX_SPAWN_OPEN, fd_no, os.devnull, os.O_WRONLY, 0)
-                )
-            elif target is not None:
-                actions.append((os.POSIX_SPAWN_DUP2, target, fd_no))
-
+        out_read, err_read = _configure_streams(
+            actions, readers, stdout, stderr, capture_output
+        )
         if input is not None:
             in_read, in_write = os.pipe()
             actions.append((os.POSIX_SPAWN_DUP2, in_read, 0))
-
-        child_env = dict(os.environ if env is None else env)
-        pid = os.posix_spawn(
-            argv[0], list(argv), child_env, file_actions=actions
-        )
+        pid = _spawn(argv, actions, env)
     finally:
         # Il figlio ha una copia della stdin: il genitore chiude solo la sua.
         _close(in_read)
@@ -233,17 +273,7 @@ def run(
     if timeout is not None and returncode < 0:
         raise CommandTimeout(argv, timeout)
 
-    chunks = {
-        "stdout": readers.get(out_read, []),
-        "stderr": readers.get(err_read, []),
-    }
-    result = CompletedCommand(
-        args=list(argv),
-        returncode=returncode,
-        chunks=chunks,
-    )
-    result.stdout = result._text("stdout")
-    result.stderr = result._text("stderr")
+    result = _make_result(argv, readers, out_read, err_read, returncode)
     if check and returncode != 0:
         raise CommandError(returncode, argv)
     return result

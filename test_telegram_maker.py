@@ -1,7 +1,6 @@
 """Test di telegram_maker_multi."""
 import json
 import os
-
 import tempfile
 import unittest
 from contextlib import contextmanager
@@ -10,6 +9,7 @@ from pathlib import Path
 from typing import ClassVar
 from unittest.mock import mock_open, patch
 
+import command_runner as cr
 import telegram_maker_multi as tm
 from command_runner import CommandError
 from source_patch import modify_max_accounts
@@ -769,6 +769,259 @@ class TestMain(unittest.TestCase):
         install, build = self.run_main([False, False])
         install.assert_not_called()
         build.assert_not_called()
+
+
+class FakeKey:
+    """Chiave minima di un selettore, con descrittore e sink."""
+
+    def __init__(self, fd, data):
+        self.fd = fd
+        self.data = data
+
+
+class FakeSelector:
+    """Selettore deterministica: restituisce i descrittori in sequenza."""
+
+    def __init__(self, events):
+        self.events = list(events)
+        self.map = {}
+        self.closed = False
+
+    def register(self, fd, event, data):
+        self.map[fd] = FakeKey(fd, data)
+
+    def get_map(self):
+        return self.map
+
+    def select(self):
+        if not self.events:
+            return []
+        fd = self.events.pop(0)
+        key = self.map.get(fd)
+        return [(key, 0)] if key is not None else []
+
+    def unregister(self, fd):
+        self.map.pop(fd, None)
+
+    def close(self):
+        self.closed = True
+
+
+class CommandRunnerTests(unittest.TestCase):
+    """Copertura degli helper di esecuzione sicura dei comandi."""
+
+    @classmethod
+    def setUpClass(cls):
+        # Le primitive POSIX non esistono su Windows: i test le sostituiscono
+        # con stub, quindi servono solo come attributi da poter patchare.
+        for name, value in (
+            ("WNOHANG", 1),
+            ("POSIX_SPAWN_DUP2", 1),
+            ("POSIX_SPAWN_OPEN", 2),
+        ):
+            if not hasattr(cr.os, name):
+                setattr(cr.os, name, value)
+        for name in ("posix_spawn", "waitpid"):
+            if not hasattr(cr.os, name):
+                setattr(cr.os, name, lambda *args, **kwargs: None)
+        if not hasattr(cr.signal, "SIGKILL"):
+            cr.signal.SIGKILL = 9
+        if not hasattr(cr.os, "waitstatus_to_exitcode"):
+
+            def exitcode(status):
+                signal_number = status & 0x7F
+                return -signal_number if signal_number else (status >> 8) & 0xFF
+
+            cr.os.waitstatus_to_exitcode = exitcode
+
+    def test_close_none(self):
+        self.assertFalse(cr._close(None))
+
+    def test_close_success(self):
+        with patch.object(cr.os, "close") as close:
+            self.assertTrue(cr._close(7))
+        close.assert_called_once_with(7)
+
+    def test_close_already_closed(self):
+        with patch.object(cr.os, "close", side_effect=OSError):
+            self.assertFalse(cr._close(7))
+
+    def test_write_success(self):
+        with patch.object(cr.os, "write", return_value=3) as write:
+            self.assertTrue(cr._write(7, b"abc"))
+        write.assert_called_once_with(7, b"abc")
+
+    def test_write_broken_pipe(self):
+        with patch.object(cr.os, "write", side_effect=BrokenPipeError):
+            self.assertFalse(cr._write(7, b"abc"))
+
+    def test_signal_success(self):
+        with patch.object(cr.os, "kill") as kill:
+            self.assertTrue(cr._signal(123, 15))
+        kill.assert_called_once_with(123, 15)
+
+    def test_signal_missing_process(self):
+        with patch.object(cr.os, "kill", side_effect=ProcessLookupError):
+            self.assertFalse(cr._signal(123, 15))
+
+    def test_terminate_stops_after_sigterm(self):
+        with patch.object(cr, "_signal"), patch.object(
+            cr.time, "monotonic", side_effect=[0, 0.1]
+        ), patch.object(cr.os, "waitpid", return_value=(123, 0)) as waitpid:
+            self.assertEqual(cr._terminate(123), 0)
+        waitpid.assert_called_with(123, cr.os.WNOHANG)
+
+    def test_terminate_escalates_to_sigkill(self):
+        with patch.object(cr, "_signal") as signal, patch.object(
+            cr.time, "monotonic", side_effect=[0, 0.1, 10]
+        ), patch.object(cr.time, "sleep"), patch.object(
+            cr.os, "waitpid", side_effect=[(0, 0), (123, 9)]
+        ):
+            self.assertEqual(cr._terminate(123), 9)
+        self.assertEqual(signal.call_count, 2)
+        signal.assert_any_call(123, getattr(cr.signal, "SIGKILL", 9))
+
+    def test_wait_without_timeout(self):
+        with patch.object(cr.os, "waitpid", return_value=(123, 5 << 8)) as waitpid:
+            self.assertEqual(cr._wait(123, None), 5 << 8)
+        waitpid.assert_called_once_with(123, 0)
+
+    def test_wait_immediate_with_timeout(self):
+        with patch.object(cr.os, "waitpid", return_value=(123, 0)) as waitpid:
+            self.assertEqual(cr._wait(123, 5), 0)
+        waitpid.assert_called_once_with(123, cr.os.WNOHANG)
+
+    def test_wait_polls_then_finishes(self):
+        with patch.object(cr.time, "monotonic", side_effect=[0, 0.1, 0.2]), patch.object(
+            cr.time, "sleep"
+        ), patch.object(cr.os, "waitpid", side_effect=[(0, 0), (123, 0)]) as waitpid:
+            self.assertEqual(cr._wait(123, 5), 0)
+        self.assertEqual(waitpid.call_count, 2)
+
+    def test_wait_expires_and_terminates(self):
+        with patch.object(cr.time, "monotonic", side_effect=[0, 10]), patch.object(
+            cr.os, "waitpid", return_value=(0, 0)
+        ), patch.object(cr, "_terminate", return_value=9) as terminate:
+            self.assertEqual(cr._wait(123, 1), 9)
+        terminate.assert_called_once_with(123)
+
+    def test_collect_reads_until_eof(self):
+        data = {10: [b"abc", b""]}
+        selector = FakeSelector([10, 10])
+        sink = []
+        with patch.object(cr.selectors, "DefaultSelector", return_value=selector), patch.object(
+            cr.os, "read", side_effect=lambda fd, size: data[fd].pop(0)
+        ), patch.object(cr, "_close") as close:
+            cr._collect({10: sink})
+        self.assertEqual(sink, [b"abc"])
+        close.assert_called_once_with(10)
+        self.assertTrue(selector.closed)
+
+    def test_collect_closes_on_error(self):
+        selector = FakeSelector([10])
+        with patch.object(
+            cr.selectors, "DefaultSelector", return_value=selector
+        ), patch.object(
+            cr.os, "read", side_effect=OSError("lettura fallita")
+        ), patch.object(
+            cr, "_close"
+        ) as close, self.assertRaises(OSError):
+            cr._collect({10: []})
+        close.assert_called_once_with(10)
+
+    def test_validate_accepts_arguments(self):
+        cr._validate(["/bin/echo"], None, False)
+
+    def test_validate_rejects_empty_argv(self):
+        with self.assertRaises(ValueError):
+            cr._validate([], None, False)
+
+    def test_validate_rejects_relative_executable(self):
+        with self.assertRaises(ValueError):
+            cr._validate(["echo"], None, False)
+
+    def test_validate_rejects_text_input_without_text(self):
+        with self.assertRaises(TypeError):
+            cr._validate(["/bin/echo"], "dati", False)
+
+    def test_validate_rejects_invalid_input_type(self):
+        with self.assertRaises(TypeError):
+            cr._validate(["/bin/echo"], 42, True)
+
+    def test_configure_streams_creates_pipes(self):
+        pipes = iter([(40, 41), (42, 43)])
+        actions = []
+        readers = {}
+        with patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)), patch.object(
+            cr.os, "close"
+        ):
+            out_read, err_read = cr._configure_streams(
+                actions, readers, None, None, True
+            )
+        self.assertEqual((out_read, err_read), (40, 42))
+        self.assertEqual(readers, {40: [], 42: []})
+        self.assertEqual(len(actions), 2)
+
+    def test_configure_streams_handles_devnull_and_fd(self):
+        actions = []
+        with patch.object(cr.os, "pipe") as pipe:
+            out_read, err_read = cr._configure_streams(
+                actions, {}, cr.DEVNULL, 9, False
+            )
+        self.assertIsNone(out_read)
+        self.assertIsNone(err_read)
+        pipe.assert_not_called()
+        self.assertEqual(actions[0][0], cr.os.POSIX_SPAWN_OPEN)
+        self.assertEqual(actions[1], (cr.os.POSIX_SPAWN_DUP2, 9, 2))
+
+    def test_spawn_uses_given_environment(self):
+        with patch.object(cr.os, "posix_spawn", return_value=321) as spawn:
+            self.assertEqual(cr._spawn(["/bin/echo"], [], {"A": "B"}), 321)
+        self.assertEqual(spawn.call_args.args[2], {"A": "B"})
+
+    def test_make_result_decodes_chunks(self):
+        readers = {10: [b"ciao ", b"mondo"], 11: [b"errore"]}
+        result = cr._make_result(["/bin/echo"], readers, 10, 11, 0)
+        self.assertEqual(result.stdout, "ciao mondo")
+        self.assertEqual(result.stderr, "errore")
+        self.assertEqual(result.returncode, 0)
+
+    def test_run_with_capture_and_stdin(self):
+        pipes = iter([(40, 41), (42, 43), (44, 45)])
+        with patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)), patch.object(
+            cr.os, "posix_spawn", return_value=777
+        ) as spawn, patch.object(cr.os, "waitpid", return_value=(777, 0)), patch.object(
+            cr.os, "write"
+        ) as write, patch.object(cr.os, "close"), patch.object(
+            cr.threading, "Thread"
+        ) as thread:
+            result = cr.run(
+                ["/bin/cat"], capture_output=True, text=True, input="dati"
+            )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.args, ["/bin/cat"])
+        self.assertEqual(result.stdout, "")
+        write.assert_called_once()
+        spawn.assert_called_once()
+        thread.assert_called_once()
+
+    def test_run_raises_command_error(self):
+        with patch.object(cr.os, "posix_spawn", return_value=777), patch.object(
+            cr.os, "waitpid", return_value=(777, 3 << 8)
+        ), self.assertRaises(CommandError) as raised:
+            cr.run(["/bin/false"], check=True)
+        self.assertEqual(raised.exception.returncode, 3)
+
+    def test_run_raises_command_timeout(self):
+        with patch.object(
+            cr.os, "posix_spawn", return_value=777
+        ), patch.object(
+            cr.os, "waitpid", return_value=(777, 15)
+        ), patch.object(
+            cr.os, "waitstatus_to_exitcode", return_value=-15
+        ), self.assertRaises(cr.CommandTimeout) as raised:
+            cr.run(["/bin/sleep"], timeout=1)
+        self.assertEqual(raised.exception.seconds, 1)
 
 
 if __name__ == "__main__":
