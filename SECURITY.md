@@ -192,6 +192,14 @@ We take security seriously and will respond promptly to all security reports.
 - Python: [Security Best
   Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
 
+## HTTPS
+
+The repository has no runtime network URL using plain HTTP. The two `http://`
+occurrences are in `LICENSE` and belong to the verbatim Apache 2.0 license text
+(`http://www.apache.org/licenses/` and the LICENSE-2.0 link): they are legal
+references, not requests performed by the scripts. Application traffic and
+external links use HTTPS or SSH.
+
 ## Support
 
 For questions or issues:
