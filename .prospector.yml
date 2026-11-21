@@ -1,0 +1,6 @@
+# Il progetto usa docstring in stile Google: il riepilogo e' sulla prima riga
+# e le sezioni usano "Args:"/"Returns:" senza sottolineature.
+# La configurazione precedente applicava la convenzione NumPy, generando
+# centinaia di falsi positivi su docstring gia' corrette.
+pydocstyle:
+  convention: google

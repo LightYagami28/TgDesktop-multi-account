@@ -33,6 +33,8 @@ from command_runner import (
     DEVNULL,
     CommandError,
     CompletedCommand,
+)
+from command_runner import (
     run as run_process,
 )
 from source_patch import modify_max_accounts

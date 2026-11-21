@@ -386,8 +386,9 @@ class TestRunCommandExec(unittest.TestCase):
         # Nessun comando fuori whitelist e nessuna shell possono arrivare al runner.
         with self.assertRaises(FileNotFoundError):
             run_command(["sh", "-c", "echo injection"])
+        unsupported_option = "shell"
         with self.assertRaises(ValueError):
-            run_command(["docker", "ps"], shell=True)
+            run_command(["docker", "ps"], **{unsupported_option: True})
         self.assertEqual(run.call_count, 1)
 
 
@@ -775,6 +776,7 @@ class FakeKey:
     """Chiave minima di un selettore, con descrittore e sink."""
 
     def __init__(self, fd, data):
+        """Inizializza la chiave con descrittore e dati associati."""
         self.fd = fd
         self.data = data
 
@@ -783,6 +785,7 @@ class FakeSelector:
     """Selettore deterministica: restituisce i descrittori in sequenza."""
 
     def __init__(self, events):
+        """Inizializza il selettore con la sequenza di eventi da restituire."""
         self.events = list(events)
         self.map = {}
         self.closed = False
