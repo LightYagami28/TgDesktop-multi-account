@@ -26,6 +26,7 @@ class CommandError(Exception):
     """Un comando e' terminato con un codice diverso da zero."""
 
     def __init__(self, returncode: int, cmd: Sequence[str]) -> None:
+        """Memorizza codice di uscita e comando che ha generato l'errore."""
         self.returncode = returncode
         self.cmd = tuple(cmd)
         super().__init__(
@@ -37,6 +38,7 @@ class CommandTimeout(Exception):
     """Un comando ha superato il tempo massimo consentito."""
 
     def __init__(self, cmd: Sequence[str], seconds: float) -> None:
+        """Memorizza il comando interrotto e il limite di tempo applicato."""
         self.cmd = tuple(cmd)
         self.seconds = seconds
         super().__init__(

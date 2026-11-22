@@ -776,6 +776,7 @@ class FakeKey:
     """Chiave minima di un selettore, con descrittore e sink."""
 
     def __init__(self, fd, data):
+        """Inizializza la chiave con descrittore e dati associati."""
         self.fd = fd
         self.data = data
 
@@ -784,17 +785,21 @@ class FakeSelector:
     """Selettore deterministica: restituisce i descrittori in sequenza."""
 
     def __init__(self, events):
+        """Inizializza il selettore con la sequenza di eventi da restituire."""
         self.events = list(events)
         self.map = {}
         self.closed = False
 
     def register(self, fd, event, data):
+        """Registra un descrittore con i relativi dati."""
         self.map[fd] = FakeKey(fd, data)
 
     def get_map(self):
+        """Restituisce la mappa dei descrittori registrati."""
         return self.map
 
     def select(self):
+        """Restituisce gli eventi registrati."""
         if not self.events:
             return []
         fd = self.events.pop(0)
@@ -802,9 +807,11 @@ class FakeSelector:
         return [(key, 0)] if key is not None else []
 
     def unregister(self, fd):
+        """Rimuove un descrittore dalla mappa."""
         self.map.pop(fd, None)
 
     def close(self):
+        """Segna il selettore come chiuso."""
         self.closed = True
 
 
@@ -836,36 +843,44 @@ class CommandRunnerTests(unittest.TestCase):
             cr.os.waitstatus_to_exitcode = exitcode
 
     def test_close_none(self):
+        """Verifica close none."""
         self.assertFalse(cr._close(None))
 
     def test_close_success(self):
+        """Verifica close success."""
         with patch.object(cr.os, "close") as close:
             self.assertTrue(cr._close(7))
         close.assert_called_once_with(7)
 
     def test_close_already_closed(self):
+        """Verifica close already closed."""
         with patch.object(cr.os, "close", side_effect=OSError):
             self.assertFalse(cr._close(7))
 
     def test_write_success(self):
+        """Verifica write success."""
         with patch.object(cr.os, "write", return_value=3) as write:
             self.assertTrue(cr._write(7, b"abc"))
         write.assert_called_once_with(7, b"abc")
 
     def test_write_broken_pipe(self):
+        """Verifica write broken pipe."""
         with patch.object(cr.os, "write", side_effect=BrokenPipeError):
             self.assertFalse(cr._write(7, b"abc"))
 
     def test_signal_success(self):
+        """Verifica signal success."""
         with patch.object(cr.os, "kill") as kill:
             self.assertTrue(cr._signal(123, 15))
         kill.assert_called_once_with(123, 15)
 
     def test_signal_missing_process(self):
+        """Verifica signal missing process."""
         with patch.object(cr.os, "kill", side_effect=ProcessLookupError):
             self.assertFalse(cr._signal(123, 15))
 
     def test_terminate_stops_after_sigterm(self):
+        """Verifica terminate stops after sigterm."""
         with patch.object(cr, "_signal"), patch.object(
             cr.time, "monotonic", side_effect=[0, 0.1]
         ), patch.object(cr.os, "waitpid", return_value=(123, 0)) as waitpid:
@@ -873,6 +888,7 @@ class CommandRunnerTests(unittest.TestCase):
         waitpid.assert_called_with(123, cr.os.WNOHANG)
 
     def test_terminate_escalates_to_sigkill(self):
+        """Verifica terminate escalates to sigkill."""
         with patch.object(cr, "_signal") as signal, patch.object(
             cr.time, "monotonic", side_effect=[0, 0.1, 10]
         ), patch.object(cr.time, "sleep"), patch.object(
@@ -883,16 +899,19 @@ class CommandRunnerTests(unittest.TestCase):
         signal.assert_any_call(123, getattr(cr.signal, "SIGKILL", 9))
 
     def test_wait_without_timeout(self):
+        """Verifica wait without timeout."""
         with patch.object(cr.os, "waitpid", return_value=(123, 5 << 8)) as waitpid:
             self.assertEqual(cr._wait(123, None), 5 << 8)
         waitpid.assert_called_once_with(123, 0)
 
     def test_wait_immediate_with_timeout(self):
+        """Verifica wait immediate with timeout."""
         with patch.object(cr.os, "waitpid", return_value=(123, 0)) as waitpid:
             self.assertEqual(cr._wait(123, 5), 0)
         waitpid.assert_called_once_with(123, cr.os.WNOHANG)
 
     def test_wait_polls_then_finishes(self):
+        """Verifica wait polls then finishes."""
         with patch.object(cr.time, "monotonic", side_effect=[0, 0.1, 0.2]), patch.object(
             cr.time, "sleep"
         ), patch.object(cr.os, "waitpid", side_effect=[(0, 0), (123, 0)]) as waitpid:
@@ -900,6 +919,7 @@ class CommandRunnerTests(unittest.TestCase):
         self.assertEqual(waitpid.call_count, 2)
 
     def test_wait_expires_and_terminates(self):
+        """Verifica wait expires and terminates."""
         with patch.object(cr.time, "monotonic", side_effect=[0, 10]), patch.object(
             cr.os, "waitpid", return_value=(0, 0)
         ), patch.object(cr, "_terminate", return_value=9) as terminate:
@@ -907,6 +927,7 @@ class CommandRunnerTests(unittest.TestCase):
         terminate.assert_called_once_with(123)
 
     def test_collect_reads_until_eof(self):
+        """Verifica collect reads until eof."""
         data = {10: [b"abc", b""]}
         selector = FakeSelector([10, 10])
         sink = []
@@ -919,6 +940,7 @@ class CommandRunnerTests(unittest.TestCase):
         self.assertTrue(selector.closed)
 
     def test_collect_closes_on_error(self):
+        """Verifica collect closes on error."""
         selector = FakeSelector([10])
         with patch.object(
             cr.selectors, "DefaultSelector", return_value=selector
@@ -931,6 +953,7 @@ class CommandRunnerTests(unittest.TestCase):
         close.assert_called_once_with(10)
 
     def test_validate_accepts_arguments(self):
+        """Verifica validate accepts arguments."""
         cr._validate(["/bin/echo"], None, False)
 
     def test_validate_rejects_empty_argv(self):
