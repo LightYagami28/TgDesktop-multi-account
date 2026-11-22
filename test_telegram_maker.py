@@ -11,9 +11,7 @@ from unittest.mock import mock_open, patch
 
 import command_runner as cr
 import telegram_maker_multi as tm
-from command_runner import CommandError
 from source_patch import modify_max_accounts
-from telegram_maker_multi import docker_apt_source, install_dependencies, run_command
 from validation import (
     ask_yes_no,
     validate_api_hash,
@@ -21,7 +19,7 @@ from validation import (
     validate_voip_count,
 )
 
-FAILED = CommandError(1, ["docker"])
+FAILED = cr.CommandError(1, ["docker"])
 
 
 @contextmanager
@@ -268,7 +266,7 @@ class TestRunCommand(unittest.TestCase):
         with patch("shutil.which", return_value=None), self.assertRaises(
             FileNotFoundError
         ):
-            run_command(["comando-inesistente"])
+            tm.run_command(["comando-inesistente"])
 
 
 class TestDockerInstall(unittest.TestCase):
@@ -276,7 +274,7 @@ class TestDockerInstall(unittest.TestCase):
 
     def test_source_signed(self):
         """La riga del repository usa il keyring dedicato."""
-        line = docker_apt_source("noble", "amd64")
+        line = tm.docker_apt_source("noble", "amd64")
         self.assertIn("signed-by=/etc/apt/keyrings/docker.asc", line)
         self.assertIn("ubuntu noble stable", line)
 
@@ -291,7 +289,7 @@ class TestDockerInstall(unittest.TestCase):
         with patch("telegram_maker_multi.run_command", side_effect=fake), patch(
             "platform.freedesktop_os_release", return_value={"VERSION_CODENAME": "noble"}
         ):
-            install_dependencies()
+            tm.install_dependencies()
         self.assertFalse(any("apt-key" in c for c in calls))
         self.assertIn(["sudo", "chmod", "a+r", "/etc/apt/keyrings/docker.asc"], calls)
 
@@ -379,16 +377,16 @@ class TestRunCommandExec(unittest.TestCase):
         with patch("shutil.which", return_value="/usr/bin/docker"), patch.object(
             tm, "run_process", return_value=completed()
         ) as run:
-            run_command(["docker", "ps"], text=True)
+            tm.run_command(["docker", "ps"], text=True)
         run.assert_called_once_with(
             ["/usr/bin/docker", "ps"], check=True, text=True
         )
         # Nessun comando fuori whitelist e nessuna opzione non consentita
         # possono arrivare al runner.
         with self.assertRaises(FileNotFoundError):
-            run_command(["sh", "-c", "echo injection"])
+            tm.run_command(["sh", "-c", "echo injection"])
         with self.assertRaises(ValueError):
-            run_command(["docker", "ps"], interactive=True)
+            tm.run_command(["docker", "ps"], interactive=True)
         self.assertEqual(run.call_count, 1)
 
 
@@ -467,7 +465,7 @@ class TestInstallFailure(unittest.TestCase):
             self.assertLogs(level="INFO"),
             self.assertRaises(SystemExit) as ctx,
         ):
-            install_dependencies()
+            tm.install_dependencies()
         self.assertEqual(ctx.exception.code, 1)
 
 
@@ -1019,7 +1017,7 @@ class CommandRunnerTests(unittest.TestCase):
     def test_run_raises_command_error(self):
         with patch.object(cr.os, "posix_spawn", return_value=777), patch.object(
             cr.os, "waitpid", return_value=(777, 3 << 8)
-        ), self.assertRaises(CommandError) as raised:
+        ), self.assertRaises(cr.CommandError) as raised:
             cr.run(["/bin/false"], check=True)
         self.assertEqual(raised.exception.returncode, 3)
 
