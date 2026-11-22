@@ -272,7 +272,9 @@ def clone_telegram_source() -> bool:
         logger.warning("La directory tdesktop esiste già. Saltando il clone...")
         return True
 
-    logger.info("Clonazione source code di Telegram Desktop in corso (alcuni minuti)...")
+    logger.info(
+        "Clonazione source code di Telegram Desktop in corso (alcuni minuti)..."
+    )
     try:
         run_command(["git", "clone", "--recursive", TDESKTOP_REPO])
         logger.info("✓ Source code clonato con successo")
@@ -360,10 +362,14 @@ def _docker_build(image_name: str, dockerfile_path: str) -> None:
     """
     run_command(
         [
-            "docker", "build",
-            "--progress", "plain",
-            "--build-arg", "BUILDKIT_INLINE_CACHE=1",
-            "-t", image_name,
+            "docker",
+            "build",
+            "--progress",
+            "plain",
+            "--build-arg",
+            "BUILDKIT_INLINE_CACHE=1",
+            "-t",
+            image_name,
             dockerfile_path,
         ]
     )

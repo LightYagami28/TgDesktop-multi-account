@@ -29,9 +29,7 @@ class CommandError(Exception):
         """Memorizza codice di uscita e comando che ha generato l'errore."""
         self.returncode = returncode
         self.cmd = tuple(cmd)
-        super().__init__(
-            f"comando terminato con codice {returncode}: {self.cmd[0]}"
-        )
+        super().__init__(f"comando terminato con codice {returncode}: {self.cmd[0]}")
 
 
 class CommandTimeout(Exception):
@@ -41,9 +39,7 @@ class CommandTimeout(Exception):
         """Memorizza il comando interrotto e il limite di tempo applicato."""
         self.cmd = tuple(cmd)
         self.seconds = seconds
-        super().__init__(
-            f"comando interrotto dopo {seconds}s: {self.cmd[0]}"
-        )
+        super().__init__(f"comando interrotto dopo {seconds}s: {self.cmd[0]}")
 
 
 @dataclass

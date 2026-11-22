@@ -44,6 +44,8 @@ jobs:
             bandit==1.9.4 mypy==2.4.1 pip-audit==2.10.1 ruff==0.17.6
       - name: Ruff
         run: ruff check .
+      - name: Ruff format
+        run: ruff format --check .
       - name: Bandit
         run: bandit -q -r .
       - name: Mypy
