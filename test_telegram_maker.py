@@ -1,4 +1,5 @@
 """Test di telegram_maker_multi."""
+
 import json
 import os
 import tempfile
@@ -203,8 +204,9 @@ class TestFileOperations(unittest.TestCase):
         """Should handle missing pattern in file."""
         test_content = "// No kMaxAccounts pattern here\nint some_other_value = 5;\n"
 
-        with patch("os.path.isfile", return_value=True), patch(
-            "builtins.open", mock_open(read_data=test_content)
+        with (
+            patch("os.path.isfile", return_value=True),
+            patch("builtins.open", mock_open(read_data=test_content)),
         ):
             result = modify_max_accounts("10")
             self.assertFalse(result)
@@ -263,8 +265,9 @@ class TestRunCommand(unittest.TestCase):
 
     def test_missing_executable_raises(self):
         """Un eseguibile assente non viene lanciato."""
-        with patch("shutil.which", return_value=None), self.assertRaises(
-            FileNotFoundError
+        with (
+            patch("shutil.which", return_value=None),
+            self.assertRaises(FileNotFoundError),
         ):
             tm.run_command(["comando-inesistente"])
 
@@ -286,13 +289,16 @@ class TestDockerInstall(unittest.TestCase):
             calls.append(cmd)
             return type("R", (), {"stdout": "amd64\n"})()
 
-        with patch("telegram_maker_multi.run_command", side_effect=fake), patch(
-            "platform.freedesktop_os_release", return_value={"VERSION_CODENAME": "noble"}
+        with (
+            patch("telegram_maker_multi.run_command", side_effect=fake),
+            patch(
+                "platform.freedesktop_os_release",
+                return_value={"VERSION_CODENAME": "noble"},
+            ),
         ):
             tm.install_dependencies()
         self.assertFalse(any("apt-key" in c for c in calls))
         self.assertIn(["sudo", "chmod", "a+r", "/etc/apt/keyrings/docker.asc"], calls)
-
 
 
 class TestPatchSource(unittest.TestCase):
@@ -310,7 +316,9 @@ class TestPatchSource(unittest.TestCase):
     def test_value_replaced(self):
         """Il valore viene sostituito e il resto del file resta uguale."""
         with in_temp_dir() as root:
-            path = self.write_header(root, "a;\nstatic constexpr auto kMaxAccounts = 3;\nb;\n")
+            path = self.write_header(
+                root, "a;\nstatic constexpr auto kMaxAccounts = 3;\nb;\n"
+            )
             with self.assertLogs(level="INFO"):
                 self.assertTrue(modify_max_accounts("12"))
             self.assertEqual(
@@ -328,9 +336,11 @@ class TestPatchSource(unittest.TestCase):
 
     def test_read_error(self):
         """Un errore di lettura viene loggato e restituisce False."""
-        with patch("os.path.isfile", return_value=True), patch(
-            "builtins.open", side_effect=OSError("negato")
-        ), self.assertLogs(level="ERROR"):
+        with (
+            patch("os.path.isfile", return_value=True),
+            patch("builtins.open", side_effect=OSError("negato")),
+            self.assertLogs(level="ERROR"),
+        ):
             self.assertFalse(modify_max_accounts("5"))
 
 
@@ -339,17 +349,22 @@ class TestLogging(unittest.TestCase):
 
     def test_path_inside_cwd(self):
         """Una cartella interna viene accettata."""
-        with in_temp_dir() as root, patch("logging.FileHandler"), patch(
-            "logging.basicConfig"
+        with (
+            in_temp_dir() as root,
+            patch("logging.FileHandler"),
+            patch("logging.basicConfig"),
         ):
             log_file = Path(tm.setup_logging("logs"))
             self.assertEqual(log_file.parent, (root / "logs").resolve())
 
     def test_path_traversal_blocked(self):
         """Una cartella esterna viene sostituita da tdesktop."""
-        with in_temp_dir(), patch("logging.FileHandler"), patch(
-            "logging.basicConfig"
-        ), self.assertLogs(level="WARNING"):
+        with (
+            in_temp_dir(),
+            patch("logging.FileHandler"),
+            patch("logging.basicConfig"),
+            self.assertLogs(level="WARNING"),
+        ):
             log_file = Path(tm.setup_logging("../fuori"))
             self.assertEqual(log_file.parent, Path.cwd() / "tdesktop")
 
@@ -374,13 +389,12 @@ class TestRunCommandExec(unittest.TestCase):
 
     def test_full_path_no_shell(self):
         """Il comando parte con il percorso completo, check=True e senza shell."""
-        with patch("shutil.which", return_value="/usr/bin/docker"), patch.object(
-            tm, "run_process", return_value=completed()
-        ) as run:
+        with (
+            patch("shutil.which", return_value="/usr/bin/docker"),
+            patch.object(tm, "run_process", return_value=completed()) as run,
+        ):
             tm.run_command(["docker", "ps"], text=True)
-        run.assert_called_once_with(
-            ["/usr/bin/docker", "ps"], check=True, text=True
-        )
+        run.assert_called_once_with(["/usr/bin/docker", "ps"], check=True, text=True)
         # Nessun comando fuori whitelist e nessuna opzione non consentita
         # possono arrivare al runner.
         with self.assertRaises(FileNotFoundError):
@@ -405,7 +419,10 @@ class TestDockerQueries(unittest.TestCase):
 
     def test_image_check_fails(self):
         """Un errore di Docker viene loggato e vale come assente."""
-        with patch.object(tm, "run_command", side_effect=FAILED), self.assertLogs(level="ERROR"):
+        with (
+            patch.object(tm, "run_command", side_effect=FAILED),
+            self.assertLogs(level="ERROR"),
+        ):
             self.assertFalse(tm.docker_image_exists("img"))
 
     def test_image_info(self):
@@ -442,11 +459,12 @@ class TestCpus(unittest.TestCase):
     def test_requested_capped(self):
         """Le CPU richieste non superano quelle disponibili."""
         for requested, expected in (("16", "4"), ("2+", "2")):
-            with patch.object(tm, "get_system_cpus", return_value=4), patch.object(
-                tm, "run_command"
-            ) as run, patch.object(
-                tm, "verify_build_output", return_value=False
-            ), self.assertLogs(level="INFO"):
+            with (
+                patch.object(tm, "get_system_cpus", return_value=4),
+                patch.object(tm, "run_command") as run,
+                patch.object(tm, "verify_build_output", return_value=False),
+                self.assertLogs(level="INFO"),
+            ):
                 result = tm.run_build(
                     "12345", "abcdef123456", tm.BuildOptions(cpus=requested)
                 )
@@ -485,7 +503,9 @@ class TestClone(unittest.TestCase):
         with in_temp_dir(), patch.object(tm, "run_command") as run:
             with self.assertLogs(level="INFO"):
                 self.assertTrue(tm.clone_telegram_source())
-            run.assert_called_once_with(["git", "clone", "--recursive", tm.TDESKTOP_REPO])
+            run.assert_called_once_with(
+                ["git", "clone", "--recursive", tm.TDESKTOP_REPO]
+            )
 
     def test_clone_fails(self):
         """Un clone fallito restituisce False."""
@@ -511,7 +531,9 @@ class TestVerifyOutput(unittest.TestCase):
             (root / "Telegram.bin").write_bytes(b"binario")
             with self.assertLogs(level="INFO"):
                 self.assertTrue(tm.verify_build_output("Telegram.bin"))
-            self.assertEqual((root / "telegram_output/Telegram").read_bytes(), b"binario")
+            self.assertEqual(
+                (root / "telegram_output/Telegram").read_bytes(), b"binario"
+            )
 
     def test_copy_error_tolerated(self):
         """Se la copia fallisce il controllo resta positivo."""
@@ -528,13 +550,13 @@ class TestBuildImage(unittest.TestCase):
 
     def build(self, force=False, exists=True, build_error=None):
         """Esegue build_docker_image con Docker simulato."""
-        with patch("os.path.isdir", return_value=True), patch.object(
-            tm, "docker_image_exists", return_value=exists
-        ), patch.object(
-            tm, "get_docker_image_info", return_value=self.INFO
-        ), patch.object(
-            tm, "_docker_build", side_effect=build_error
-        ) as docker_build, self.assertLogs(level="INFO"):
+        with (
+            patch("os.path.isdir", return_value=True),
+            patch.object(tm, "docker_image_exists", return_value=exists),
+            patch.object(tm, "get_docker_image_info", return_value=self.INFO),
+            patch.object(tm, "_docker_build", side_effect=build_error) as docker_build,
+            self.assertLogs(level="INFO"),
+        ):
             return tm.build_docker_image(force_rebuild=force), docker_build
 
     def test_missing_dockerfile_dir(self):
@@ -564,11 +586,13 @@ class TestBuildImage(unittest.TestCase):
 
     def test_unreadable_image_rebuilt(self):
         """Un'immagine senza metadati viene ricostruita."""
-        with patch("os.path.isdir", return_value=True), patch.object(
-            tm, "docker_image_exists", return_value=True
-        ), patch.object(tm, "get_docker_image_info", return_value=None), patch.object(
-            tm, "_docker_build"
-        ) as docker_build, self.assertLogs(level="INFO"):
+        with (
+            patch("os.path.isdir", return_value=True),
+            patch.object(tm, "docker_image_exists", return_value=True),
+            patch.object(tm, "get_docker_image_info", return_value=None),
+            patch.object(tm, "_docker_build") as docker_build,
+            self.assertLogs(level="INFO"),
+        ):
             self.assertTrue(tm.build_docker_image())
         docker_build.assert_called_once()
 
@@ -579,9 +603,14 @@ class TestBuildImage(unittest.TestCase):
 
     def test_docker_build_command(self):
         """Il comando docker build usa tag e percorso indicati."""
-        with patch("os.path.isdir", return_value=True), patch.object(
-            tm, "get_docker_image_info", return_value={"Size": 1, "Created": "oggi"}
-        ), patch.object(tm, "run_command") as run, self.assertLogs(level="INFO"):
+        with (
+            patch("os.path.isdir", return_value=True),
+            patch.object(
+                tm, "get_docker_image_info", return_value={"Size": 1, "Created": "oggi"}
+            ),
+            patch.object(tm, "run_command") as run,
+            self.assertLogs(level="INFO"),
+        ):
             self.assertTrue(tm.build_docker_image(force_rebuild=True))
         cmd = run.call_args.args[0]
         self.assertEqual(cmd[:2], ["docker", "build"])
@@ -597,11 +626,12 @@ class TestRunBuild(unittest.TestCase):
     @contextmanager
     def build_env(self, error=None):
         """Docker simulato per run_build; restituisce il comando e i log."""
-        with patch.object(tm, "run_command", side_effect=error) as run, patch.object(
-            tm, "get_system_cpus", return_value=8
-        ), patch.object(tm, "verify_build_output", return_value=False), self.assertLogs(
-            level="INFO"
-        ) as logs:
+        with (
+            patch.object(tm, "run_command", side_effect=error) as run,
+            patch.object(tm, "get_system_cpus", return_value=8),
+            patch.object(tm, "verify_build_output", return_value=False),
+            self.assertLogs(level="INFO") as logs,
+        ):
             yield run, logs
 
     def test_invalid_credentials(self):
@@ -647,41 +677,49 @@ class TestPrompts(unittest.TestCase):
 
     def test_download_source(self):
         """Risposta positiva: il sorgente viene clonato."""
-        with patch.object(tm, "ask_yes_no", return_value=True), patch.object(
-            tm, "clone_telegram_source", return_value=True
-        ) as clone:
+        with (
+            patch.object(tm, "ask_yes_no", return_value=True),
+            patch.object(tm, "clone_telegram_source", return_value=True) as clone,
+        ):
             tm.handle_source_download()
         clone.assert_called_once()
 
     def test_download_fails(self):
         """Clone fallito: uscita con codice 1."""
-        with patch.object(tm, "ask_yes_no", return_value=True), patch.object(
-            tm, "clone_telegram_source", return_value=False
-        ), self.assertRaises(SystemExit):
+        with (
+            patch.object(tm, "ask_yes_no", return_value=True),
+            patch.object(tm, "clone_telegram_source", return_value=False),
+            self.assertRaises(SystemExit),
+        ):
             tm.handle_source_download()
 
     def test_patch_accounts(self):
         """Senza download si può cambiare il limite di account."""
-        with patch.object(tm, "ask_yes_no", side_effect=[False, True]), patch(
-            "builtins.input", return_value="7"
-        ), patch.object(tm, "modify_max_accounts", return_value=True) as modify:
+        with (
+            patch.object(tm, "ask_yes_no", side_effect=[False, True]),
+            patch("builtins.input", return_value="7"),
+            patch.object(tm, "modify_max_accounts", return_value=True) as modify,
+        ):
             tm.handle_source_download()
         modify.assert_called_once_with("7")
 
     def test_patch_accounts_fails(self):
         """Modifica fallita: uscita con codice 1."""
-        with patch.object(tm, "ask_yes_no", side_effect=[False, True]), patch(
-            "builtins.input", return_value="x"
-        ), patch.object(tm, "modify_max_accounts", return_value=False), self.assertRaises(
-            SystemExit
+        with (
+            patch.object(tm, "ask_yes_no", side_effect=[False, True]),
+            patch("builtins.input", return_value="x"),
+            patch.object(tm, "modify_max_accounts", return_value=False),
+            self.assertRaises(SystemExit),
         ):
             tm.handle_source_download()
 
     def test_nothing_to_do(self):
         """Due risposte negative non fanno nulla."""
-        with patch.object(tm, "ask_yes_no", return_value=False), patch.object(
-            tm, "clone_telegram_source"
-        ) as clone, patch.object(tm, "modify_max_accounts") as modify:
+        with (
+            patch.object(tm, "ask_yes_no", return_value=False),
+            patch.object(tm, "clone_telegram_source") as clone,
+            patch.object(tm, "modify_max_accounts") as modify,
+        ):
             tm.handle_source_download()
         clone.assert_not_called()
         modify.assert_not_called()
@@ -689,11 +727,12 @@ class TestPrompts(unittest.TestCase):
     def docker_build(self, answers, inputs):
         """Esegue handle_docker_build con risposte simulate."""
         options = tm.BuildOptions(memory_limit="4g", cpus="2", extra_flags="-DX=1")
-        with patch.object(tm, "build_docker_image", return_value=True), patch.object(
-            tm, "ask_yes_no", side_effect=answers
-        ), patch("builtins.input", side_effect=inputs), patch.object(
-            tm, "run_build", return_value=True
-        ) as run_build:
+        with (
+            patch.object(tm, "build_docker_image", return_value=True),
+            patch.object(tm, "ask_yes_no", side_effect=answers),
+            patch("builtins.input", side_effect=inputs),
+            patch.object(tm, "run_build", return_value=True) as run_build,
+        ):
             tm.handle_docker_build(force_rebuild=False, options=options)
         return run_build
 
@@ -723,18 +762,21 @@ class TestPrompts(unittest.TestCase):
 
     def test_image_build_fails(self):
         """Immagine non costruita: uscita con codice 1."""
-        with patch.object(
-            tm, "build_docker_image", return_value=False
-        ), self.assertRaises(SystemExit):
+        with (
+            patch.object(tm, "build_docker_image", return_value=False),
+            self.assertRaises(SystemExit),
+        ):
             tm.handle_docker_build(force_rebuild=False, options=tm.BuildOptions())
 
     def test_build_fails(self):
         """Build fallita: uscita con codice 1."""
-        with patch.object(tm, "build_docker_image", return_value=True), patch.object(
-            tm, "ask_yes_no", side_effect=[False, True]
-        ), patch("builtins.input", side_effect=["111", "hash"]), patch.object(
-            tm, "run_build", return_value=False
-        ), self.assertRaises(SystemExit):
+        with (
+            patch.object(tm, "build_docker_image", return_value=True),
+            patch.object(tm, "ask_yes_no", side_effect=[False, True]),
+            patch("builtins.input", side_effect=["111", "hash"]),
+            patch.object(tm, "run_build", return_value=False),
+            self.assertRaises(SystemExit),
+        ):
             tm.handle_docker_build(force_rebuild=False, options=tm.BuildOptions())
 
 
@@ -743,13 +785,15 @@ class TestMain(unittest.TestCase):
 
     def run_main(self, answers, argv=("prog",)):
         """Esegue main con risposte simulate e passi sostituiti."""
-        with patch("sys.argv", list(argv)), patch.object(
-            tm, "setup_logging", return_value="build.log"
-        ), patch.object(tm, "ask_yes_no", side_effect=answers), patch.object(
-            tm, "install_dependencies"
-        ) as install, patch.object(tm, "handle_source_download"), patch.object(
-            tm, "handle_docker_build"
-        ) as build, self.assertLogs(level="INFO"):
+        with (
+            patch("sys.argv", list(argv)),
+            patch.object(tm, "setup_logging", return_value="build.log"),
+            patch.object(tm, "ask_yes_no", side_effect=answers),
+            patch.object(tm, "install_dependencies") as install,
+            patch.object(tm, "handle_source_download"),
+            patch.object(tm, "handle_docker_build") as build,
+            self.assertLogs(level="INFO"),
+        ):
             tm.main()
         return install, build
 
@@ -879,18 +923,21 @@ class CommandRunnerTests(unittest.TestCase):
 
     def test_terminate_stops_after_sigterm(self):
         """Verifica terminate stops after sigterm."""
-        with patch.object(cr, "_signal"), patch.object(
-            cr.time, "monotonic", side_effect=[0, 0.1]
-        ), patch.object(cr.os, "waitpid", return_value=(123, 0)) as waitpid:
+        with (
+            patch.object(cr, "_signal"),
+            patch.object(cr.time, "monotonic", side_effect=[0, 0.1]),
+            patch.object(cr.os, "waitpid", return_value=(123, 0)) as waitpid,
+        ):
             self.assertEqual(cr._terminate(123), 0)
         waitpid.assert_called_with(123, cr.os.WNOHANG)
 
     def test_terminate_escalates_to_sigkill(self):
         """Verifica terminate escalates to sigkill."""
-        with patch.object(cr, "_signal") as signal, patch.object(
-            cr.time, "monotonic", side_effect=[0, 0.1, 10]
-        ), patch.object(cr.time, "sleep"), patch.object(
-            cr.os, "waitpid", side_effect=[(0, 0), (123, 9)]
+        with (
+            patch.object(cr, "_signal") as signal,
+            patch.object(cr.time, "monotonic", side_effect=[0, 0.1, 10]),
+            patch.object(cr.time, "sleep"),
+            patch.object(cr.os, "waitpid", side_effect=[(0, 0), (123, 9)]),
         ):
             self.assertEqual(cr._terminate(123), 9)
         self.assertEqual(signal.call_count, 2)
@@ -910,17 +957,21 @@ class CommandRunnerTests(unittest.TestCase):
 
     def test_wait_polls_then_finishes(self):
         """Verifica wait polls then finishes."""
-        with patch.object(cr.time, "monotonic", side_effect=[0, 0.1, 0.2]), patch.object(
-            cr.time, "sleep"
-        ), patch.object(cr.os, "waitpid", side_effect=[(0, 0), (123, 0)]) as waitpid:
+        with (
+            patch.object(cr.time, "monotonic", side_effect=[0, 0.1, 0.2]),
+            patch.object(cr.time, "sleep"),
+            patch.object(cr.os, "waitpid", side_effect=[(0, 0), (123, 0)]) as waitpid,
+        ):
             self.assertEqual(cr._wait(123, 5), 0)
         self.assertEqual(waitpid.call_count, 2)
 
     def test_wait_expires_and_terminates(self):
         """Verifica wait expires and terminates."""
-        with patch.object(cr.time, "monotonic", side_effect=[0, 10]), patch.object(
-            cr.os, "waitpid", return_value=(0, 0)
-        ), patch.object(cr, "_terminate", return_value=9) as terminate:
+        with (
+            patch.object(cr.time, "monotonic", side_effect=[0, 10]),
+            patch.object(cr.os, "waitpid", return_value=(0, 0)),
+            patch.object(cr, "_terminate", return_value=9) as terminate,
+        ):
             self.assertEqual(cr._wait(123, 1), 9)
         terminate.assert_called_once_with(123)
 
@@ -929,9 +980,11 @@ class CommandRunnerTests(unittest.TestCase):
         data = {10: [b"abc", b""]}
         selector = FakeSelector([10, 10])
         sink = []
-        with patch.object(cr.selectors, "DefaultSelector", return_value=selector), patch.object(
-            cr.os, "read", side_effect=lambda fd, size: data[fd].pop(0)
-        ), patch.object(cr, "_close") as close:
+        with (
+            patch.object(cr.selectors, "DefaultSelector", return_value=selector),
+            patch.object(cr.os, "read", side_effect=lambda fd, size: data[fd].pop(0)),
+            patch.object(cr, "_close") as close,
+        ):
             cr._collect({10: sink})
         self.assertEqual(sink, [b"abc"])
         close.assert_called_once_with(10)
@@ -940,13 +993,12 @@ class CommandRunnerTests(unittest.TestCase):
     def test_collect_closes_on_error(self):
         """Verifica collect closes on error."""
         selector = FakeSelector([10])
-        with patch.object(
-            cr.selectors, "DefaultSelector", return_value=selector
-        ), patch.object(
-            cr.os, "read", side_effect=OSError("lettura fallita")
-        ), patch.object(
-            cr, "_close"
-        ) as close, self.assertRaises(OSError):
+        with (
+            patch.object(cr.selectors, "DefaultSelector", return_value=selector),
+            patch.object(cr.os, "read", side_effect=OSError("lettura fallita")),
+            patch.object(cr, "_close") as close,
+            self.assertRaises(OSError),
+        ):
             cr._collect({10: []})
         close.assert_called_once_with(10)
 
@@ -974,8 +1026,9 @@ class CommandRunnerTests(unittest.TestCase):
         pipes = iter([(40, 41), (42, 43)])
         actions = []
         readers = {}
-        with patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)), patch.object(
-            cr.os, "close"
+        with (
+            patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)),
+            patch.object(cr.os, "close"),
         ):
             out_read, err_read = cr._configure_streams(
                 actions, readers, None, None, True
@@ -1020,16 +1073,15 @@ class CommandRunnerTests(unittest.TestCase):
 
     def test_run_with_capture_and_stdin(self):
         pipes = iter([(40, 41), (42, 43), (44, 45)])
-        with patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)), patch.object(
-            cr.os, "posix_spawn", return_value=777
-        ) as spawn, patch.object(cr.os, "waitpid", return_value=(777, 0)), patch.object(
-            cr.os, "write"
-        ) as write, patch.object(cr.os, "close"), patch.object(
-            cr.threading, "Thread"
-        ) as thread:
-            result = cr.run(
-                ["/bin/cat"], capture_output=True, text=True, input="dati"
-            )
+        with (
+            patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)),
+            patch.object(cr.os, "posix_spawn", return_value=777) as spawn,
+            patch.object(cr.os, "waitpid", return_value=(777, 0)),
+            patch.object(cr.os, "write") as write,
+            patch.object(cr.os, "close"),
+            patch.object(cr.threading, "Thread") as thread,
+        ):
+            result = cr.run(["/bin/cat"], capture_output=True, text=True, input="dati")
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.args, ["/bin/cat"])
         self.assertEqual(result.stdout, "")
@@ -1038,20 +1090,21 @@ class CommandRunnerTests(unittest.TestCase):
         thread.assert_called_once()
 
     def test_run_raises_command_error(self):
-        with patch.object(cr.os, "posix_spawn", return_value=777), patch.object(
-            cr.os, "waitpid", return_value=(777, 3 << 8)
-        ), self.assertRaises(cr.CommandError) as raised:
+        with (
+            patch.object(cr.os, "posix_spawn", return_value=777),
+            patch.object(cr.os, "waitpid", return_value=(777, 3 << 8)),
+            self.assertRaises(cr.CommandError) as raised,
+        ):
             cr.run(["/bin/false"], check=True)
         self.assertEqual(raised.exception.returncode, 3)
 
     def test_run_raises_command_timeout(self):
-        with patch.object(
-            cr.os, "posix_spawn", return_value=777
-        ), patch.object(
-            cr.os, "waitpid", return_value=(777, 15)
-        ), patch.object(
-            cr.os, "waitstatus_to_exitcode", return_value=-15
-        ), self.assertRaises(cr.CommandTimeout) as raised:
+        with (
+            patch.object(cr.os, "posix_spawn", return_value=777),
+            patch.object(cr.os, "waitpid", return_value=(777, 15)),
+            patch.object(cr.os, "waitstatus_to_exitcode", return_value=-15),
+            self.assertRaises(cr.CommandTimeout) as raised,
+        ):
             cr.run(["/bin/sleep"], timeout=1)
         self.assertEqual(raised.exception.seconds, 1)
 
