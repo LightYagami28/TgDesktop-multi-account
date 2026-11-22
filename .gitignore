@@ -25,3 +25,6 @@ tdesktop/
 *.pem
 *.key
 coverage.xml
+
+# Cache locale di sonar-scanner
+.scannerwork/
