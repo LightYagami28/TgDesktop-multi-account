@@ -70,8 +70,9 @@ except subprocess.CalledProcessError as e:
 - API credentials are never logged or printed in debug output
 - No credential caching or temporary files
 - API credentials are passed to the build as CMake flags on the `docker run`
-  command line (never written to disk); `DEBUG=1` is the only environment
-  variable set by the tool. Only a masked prefix of each credential is logged
+  command line and are never written to disk by this tool. The tool sets the
+  container's `DEBUG` (debug logging) variable to `1`; Docker's own runtime
+  variables remain available. Only a masked prefix of each credential is logged
 
 ### 5. Dependency Safety ✅
 
