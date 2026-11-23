@@ -6,7 +6,7 @@ This document summarizes candidate work and maintenance priorities recorded in [
 
 ## Obiettivi e Priorità
 
-1. **Test di compatibilità con Python 3.14+**: mantenimento del 100% di test passati in CI senza dipendenze terze (75/75 test verdi).
+1. **Test di compatibilità con Python 3.14+**: mantenimento del 100% di test passati in CI senza dipendenze terze (103/103 test verdi).
 2. **Quality Gate Codacy & SonarCloud Grade A**: zero vulnerabilità, zero code smell e CCN medio < 3.
 3. **Automazione build binari**: generazione containerizzata deterministica di pacchetti aggiornati con l'ultima release upstream di Telegram Desktop.
 4. **Isolamento delle sessioni**: hardening continuo dei percorsi dati e confinamento di sicurezza delle directory di log (`validation.py`).
