@@ -2,8 +2,8 @@
 
 [![Tests](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/tests.yml/badge.svg)](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/LightYagami28/TgDesktop-multi-account/actions/workflows/codeql-analysis.yml)
-[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Tests Passing](https://img.shields.io/badge/tests-75%2F75%20passing-brightgreen)](tests/)
+[![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Tests Passing](https://img.shields.io/badge/tests-103%2F103%20passing-brightgreen)](docs/TESTING.md)
 [![Docker](https://img.shields.io/badge/Docker-build%20ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -53,7 +53,7 @@ Answer the prompts (`[Y/n]`: Enter accepts the default). When asked, type the
 API ID and API hash.
 
 | Option | Default | Meaning |
-|--------|---------|---------|
+| ------ | ------- | ------- |
 | `--force-rebuild` | off | Rebuild the Docker image even if it exists |
 | `--memory` | `4g` | Container memory limit |
 | `--cpus` | `2` | CPU count (capped to the available ones) |
@@ -74,16 +74,19 @@ above.
 
 ```bash
 python3 -m unittest -v test_telegram_maker.py
-python3 -m py_compile telegram_maker_multi.py validation.py source_patch.py
+python3 -m py_compile telegram_maker_multi.py build_helpers.py command_runner.py source_patch.py validation.py
 ```
 
-The same commands run in CI (`.github/workflows/tests.yml`) together with
-CodeQL. GitHub Actions are pinned by commit SHA.
+CI runs the same unit tests on Python 3.13, 3.14 and 3.15, plus Ruff, Bandit,
+Mypy, pip-audit and SonarCloud (`.github/workflows/tests.yml`); CodeQL is in
+`.github/workflows/codeql-analysis.yml`. GitHub Actions are pinned by commit SHA.
 
 ## Documentation
 
 - [SPEC.md](SPEC.md): purpose, architecture, flows, stack, security, limits,
   roadmap
+- [Architecture](ARCHITECTURE.md), [Roadmap](ROADMAP.md)
+- [Testing](docs/TESTING.md), [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
   [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [CHANGELOG.md](CHANGELOG.md)
 - [Wiki](https://github.com/LightYagami28/TgDesktop-multi-account/wiki)
@@ -96,12 +99,3 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md) (Telegram:
 ## License
 
 Apache License 2.0, see [LICENSE](LICENSE).
-
-
-## Documentation
-
-- [Documentation index](docs/README.md)
-- [Architecture](ARCHITECTURE.md)
-- [Roadmap](ROADMAP.md)
-- [Testing](docs/TESTING.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
