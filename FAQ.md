@@ -4,7 +4,7 @@
 Permette di compilare o eseguire Telegram Desktop con un numero esteso di account simultanei configurabili (fino a 100), mantenendo profili e sessioni rigorosamente isolati.
 
 ## Quali sono i requisiti?
-- Python 3.13 o 3.14 (richiede esclusivamente librerie standard).
+- Python 3.13 o successivo — CI verifica 3.13, 3.14 e 3.15 (richiede esclusivamente librerie standard).
 - Docker (opzionale, consigliato per la compilazione riproducibile dei sorgenti upstream).
 
 ## Come si eseguono i test?
