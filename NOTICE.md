@@ -12,5 +12,6 @@ Questo progetto contiene strumenti e configurazioni per la compilazione e l'orch
 - Questo progetto non è affiliato né approvato da Telegram FZ-LLC.
 
 ## 3. Dipendenze e Runtime
-- Standard Library Python 3.13 o successivo (Python Software Foundation License).
+- Standard Library Python 3.13 o successivo
+  (Python Software Foundation License).
 - Docker e runtime CentOS/Rocky Linux builder per build riproducibili.
