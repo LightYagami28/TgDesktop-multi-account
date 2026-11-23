@@ -1108,6 +1108,20 @@ class CommandRunnerTests(unittest.TestCase):
             cr.run(["/bin/sleep"], timeout=1)
         self.assertEqual(raised.exception.seconds, 1)
 
+    def test_run_closes_fds_when_spawn_fails(self):
+        pipes = iter([(40, 41), (42, 43), (44, 45)])
+        with (
+            patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)),
+            patch.object(cr.os, "posix_spawn", side_effect=OSError("spawn failed")),
+            patch.object(cr.os, "close") as close,
+            self.assertRaises(OSError),
+        ):
+            cr.run(["/bin/cat"], capture_output=True, input=b"dati")
+        closed = {call.args[0] for call in close.call_args_list}
+        self.assertIn(40, closed)
+        self.assertIn(42, closed)
+        self.assertIn(45, closed)
+
 
 if __name__ == "__main__":
     unittest.main()
