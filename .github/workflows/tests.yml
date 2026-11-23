@@ -72,7 +72,7 @@ jobs:
           set -Eeuo pipefail
           trap 'echo "comando fallito alla riga $LINENO: $BASH_COMMAND" >&2' ERR
           trap 'echo "test con copertura terminati"' EXIT
-          python -m pip install --quiet --only-binary :all: coverage==7.17.2
+          python -m pip install --quiet --only-binary :all: coverage==7.17.4
           python -m coverage run --source=. --omit=test_*.py -m unittest -v test_telegram_maker.py
           python -m coverage xml -o coverage.xml
       # Il segreto SONAR_TOKEN manca nelle PR da fork e da Dependabot: l'analisi si salta.
