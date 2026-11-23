@@ -255,7 +255,8 @@ def run(
         pid = _spawn(argv, actions, env)
     except BaseException:
         _close(in_write)
-        for reader_fd in readers:`n            _close(reader_fd)
+        for reader_fd in readers:
+            _close(reader_fd)
         raise
     finally:
         # Il figlio ha una copia della stdin: il genitore chiude solo la sua.
