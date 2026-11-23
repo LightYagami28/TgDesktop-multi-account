@@ -186,11 +186,10 @@ We take security seriously and will respond promptly to all security reports.
 
 - OWASP: [Command
   Injection](https://owasp.org/www-community/attacks/Command_Injection)
-- OWASP: [OS Command
-  Injection](https://owasp.org/www-community/attacks/OS_Command_Injection)
+- OWASP: [Top 10 — A03 Injection](https://owasp.org/Top10/A03_2021-Injection/)
 - Python: [subprocess module](https://docs.python.org/3/library/subprocess.html)
-- Python: [Security Best
-  Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
+- Python: [Security
+  Considerations](https://docs.python.org/3/library/security_warnings.html)
 
 ## HTTPS
 
