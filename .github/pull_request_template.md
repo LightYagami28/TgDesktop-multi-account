@@ -15,7 +15,7 @@
 
 ## Checklist
 
-- [ ] Tests pass (`python3 -m pytest test_telegram_maker.py -v`)
+- [ ] Tests pass (`python3 -m unittest -v test_telegram_maker.py`)
 - [ ] No linting issues
 - [ ] Changes documented
 - [ ] Security implications reviewed
