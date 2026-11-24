@@ -607,7 +607,7 @@ def main() -> None:
             options=BuildOptions(args.memory, args.cpus, args.cmake_flags),
         )
     else:
-        logger.info("Source code non trovato e build saltata.")
+        logger.info("Build Docker saltata.")
 
     logger.info("=" * 80)
     logger.info("Workflow completato")

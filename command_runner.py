@@ -244,6 +244,7 @@ def run(
     actions: list[tuple[Any, ...]] = []
     readers: dict[int, list[bytes]] = {}
     in_read = in_write = None
+    out_read = err_read = None
     try:
         out_read, err_read = _configure_streams(
             actions, readers, stdout, stderr, capture_output
@@ -252,6 +253,11 @@ def run(
             in_read, in_write = os.pipe()
             actions.append((os.POSIX_SPAWN_DUP2, in_read, 0))
         pid = _spawn(argv, actions, env)
+    except BaseException:
+        _close(in_write)
+        for reader_fd in readers:
+            _close(reader_fd)
+        raise
     finally:
         # Il figlio ha una copia della stdin: il genitore chiude solo la sua.
         _close(in_read)
