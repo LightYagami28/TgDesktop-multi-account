@@ -69,7 +69,10 @@ except subprocess.CalledProcessError as e:
 
 - API credentials are never logged or printed in debug output
 - No credential caching or temporary files
-- Secrets are only passed to Docker as environment variables
+- API credentials are passed to the build as CMake flags on the `docker run`
+  command line. By default the tool does not persist them to disk and enables
+  container debug logging; Docker's own runtime variables remain available.
+  Only a masked prefix of each credential is logged
 
 ### 5. Dependency Safety ✅
 
@@ -87,17 +90,17 @@ passing.
 The project includes a comprehensive test suite to verify security:
 
 ```bash
-python3 -m pytest test_telegram_maker.py -v
+python3 -m unittest -v test_telegram_maker.py
 ```
 
 Tests cover:
 
-- ✅ Input validation (20 dedicated test cases)
-- ✅ Injection prevention (9 test cases for various attack vectors)
-- ✅ Error handling (2 test cases for file operations)
+- ✅ Input validation
+- ✅ Injection prevention for various attack vectors
+- ✅ Error handling for file operations
 - ✅ Edge cases (whitespace trimming, empty input)
 
-**All 20 tests pass** ✓
+**All 103 tests pass** ✓ (verified with Python 3.15.2 on 2026-11-23)
 
 ## Known Limitations
 
@@ -168,11 +171,11 @@ We take security seriously and will respond promptly to all security reports.
 
 ## Version History
 
-### v1.2.0 (Current)
+### v1.3.0 (Current)
 
 - ✅ Shell injection prevention via subprocess
 - ✅ Comprehensive input validation
-- ✅ Full test coverage (20 tests)
+- ✅ Full test suite (103 tests)
 - ✅ Reduced code complexity
 - ✅ Clear error messages
 
@@ -208,6 +211,6 @@ For questions or issues:
    [Troubleshooting](https://github.com/LightYagami28/TgDesktop-multi-account/wiki/Troubleshooting)
    wiki page
 2. Run tests to verify installation:
-   `python3 -m pytest test_telegram_maker.py -v`
+   `python3 -m unittest -v test_telegram_maker.py`
 3. Report security issues to [@LightYagami28](https://t.me/LightYagami28) on
    Telegram

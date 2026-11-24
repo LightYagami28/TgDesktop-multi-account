@@ -102,30 +102,37 @@ All Python code must adhere to [PEP
 
 1. **Fork the repository**
 
-```bash git clone https://github.com/YOUR-USERNAME/TgDesktop-multi-account.git
-cd TgDesktop-multi-account ```
+   ```bash
+   git clone https://github.com/YOUR-USERNAME/TgDesktop-multi-account.git
+   cd TgDesktop-multi-account
+   ```
 
-2. **Create a virtual environment**
+2. **Create a virtual environment** (optional: the script uses only the
+   standard library)
 
-```bash python3 -m venv venv source venv/bin/activate # On Windows:
-venv\Scripts\activate ```
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   # On Windows: venv\Scripts\activate
+   ```
 
-3. **Install dependencies**
+3. **Run tests** (no `pip install` and no pytest are needed)
 
-   ```bash    pip install -r requirements.txt    ```
+   ```bash
+   python3 -m unittest -v test_telegram_maker.py
+   python3 -m py_compile telegram_maker_multi.py build_helpers.py command_runner.py source_patch.py validation.py
+   ```
 
-4. **Run tests**
+4. **Create a feature branch**
 
-   ```bash    python3 -m pytest test_telegram_maker.py -v    ```
-
-5. **Create a feature branch**
-
-   ```bash    git checkout -b feature/your-feature-name    ```
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
 ## Testing
 
-* Write tests for new features
-* Ensure all tests pass: `python3 -m pytest test_telegram_maker.py -v`
+* Write tests for new features using `unittest`
+* Ensure all tests pass: `python3 -m unittest -v test_telegram_maker.py`
 * Maintain or improve code coverage
 * Test your changes with real Docker builds when possible
 
