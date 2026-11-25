@@ -155,11 +155,9 @@ def _configure_streams(
     stderr: Any,
     capture_output: bool,
 ) -> tuple[int | None, int | None]:
-    """Prepara le pipe di output e restituisce i descrittori di lettura.
-
-    I lati di scrittura finiscono in ``write_fds``: vanno chiusi dal genitore
-    solo dopo lo spawn, perche' ``posix_spawn`` li duplica nel figlio.
-    """
+    """Prepara le pipe di output e restituisce i descrittori di lettura."""
+    # I lati di scrittura finiscono in write_fds: vanno chiusi dal genitore
+    # solo dopo lo spawn, perche' posix_spawn li duplica nel figlio.
     out_read = err_read = None
     for fd_no, target in ((1, stdout), (2, stderr)):
         if capture_output and target is None:
