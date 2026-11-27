@@ -78,6 +78,6 @@ jobs:
       # Il segreto SONAR_TOKEN manca nelle PR da fork e da Dependabot: l'analisi si salta.
       - name: Scansione SonarCloud
         if: env.SONAR_TOKEN != ''
-        uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4  # v8.5.0
+        uses: SonarSource/sonarqube-scan-action@70bad232163b09d998ea0707ee80c0ec80798c16  # v8.5.1
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
