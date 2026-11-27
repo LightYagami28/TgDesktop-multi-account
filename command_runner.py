@@ -150,11 +150,14 @@ def _validate(argv: Sequence[str], input: bytes | str | None, text: bool) -> Non
 def _configure_streams(
     actions: list[tuple[Any, ...]],
     readers: dict[int, list[bytes]],
+    write_fds: list[int],
     stdout: Any,
     stderr: Any,
     capture_output: bool,
 ) -> tuple[int | None, int | None]:
     """Prepara le pipe di output e restituisce i descrittori di lettura."""
+    # I lati di scrittura finiscono in write_fds: vanno chiusi dal genitore
+    # solo dopo lo spawn, perche' posix_spawn li duplica nel figlio.
     out_read = err_read = None
     for fd_no, target in ((1, stdout), (2, stderr)):
         if capture_output and target is None:
@@ -164,8 +167,8 @@ def _configure_streams(
                 out_read = read_fd
             else:
                 err_read = read_fd
+            write_fds.append(write_fd)
             actions.append((os.POSIX_SPAWN_DUP2, write_fd, fd_no))
-            _close(write_fd)
         elif target is DEVNULL:
             actions.append((os.POSIX_SPAWN_OPEN, fd_no, os.devnull, os.O_WRONLY, 0))
         elif target is not None:
@@ -243,11 +246,12 @@ def run(
 
     actions: list[tuple[Any, ...]] = []
     readers: dict[int, list[bytes]] = {}
+    write_fds: list[int] = []
     in_read = in_write = None
     out_read = err_read = None
     try:
         out_read, err_read = _configure_streams(
-            actions, readers, stdout, stderr, capture_output
+            actions, readers, write_fds, stdout, stderr, capture_output
         )
         if input is not None:
             in_read, in_write = os.pipe()
@@ -259,8 +263,19 @@ def run(
             _close(reader_fd)
         raise
     finally:
-        # Il figlio ha una copia della stdin: il genitore chiude solo la sua.
+        # Il figlio ha le sue copie: il genitore chiude le proprie, cosi' la
+        # lettura dell'output vede la fine del flusso quando il figlio esce.
         _close(in_read)
+        for write_fd in write_fds:
+            _close(write_fd)
+
+    # La raccolta deve partire prima della scrittura della stdin e dell'attesa:
+    # con output oltre la capacita' della pipe il figlio si bloccherebbe
+    # scrivendo mentre il genitore resta fermo sulla sua stdin.
+    collector = None
+    if readers:
+        collector = threading.Thread(target=_collect, args=(readers,), daemon=True)
+        collector.start()
 
     if in_write is not None and input is not None:
         payload = input.encode("utf-8") if isinstance(input, str) else input
@@ -268,13 +283,6 @@ def run(
         # uscita viene comunque valutato da ``check``.
         _write(in_write, payload)
         _close(in_write)
-
-    # La raccolta deve partire prima dell'attesa: con output oltre la capacity
-    # della pipe il figlio si bloccherebbe scrivendo e l'attesa non finirebbe.
-    collector = None
-    if readers:
-        collector = threading.Thread(target=_collect, args=(readers,), daemon=True)
-        collector.start()
 
     status = _wait(pid, timeout)
     if collector is not None:

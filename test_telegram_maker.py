@@ -1026,22 +1026,25 @@ class CommandRunnerTests(unittest.TestCase):
         pipes = iter([(40, 41), (42, 43)])
         actions = []
         readers = {}
+        write_fds = []
         with (
             patch.object(cr.os, "pipe", side_effect=lambda: next(pipes)),
-            patch.object(cr.os, "close"),
+            patch.object(cr.os, "close") as close,
         ):
             out_read, err_read = cr._configure_streams(
-                actions, readers, None, None, True
+                actions, readers, write_fds, None, None, True
             )
         self.assertEqual((out_read, err_read), (40, 42))
+        self.assertEqual(write_fds, [41, 43])
         self.assertEqual(readers, {40: [], 42: []})
         self.assertEqual(len(actions), 2)
+        close.assert_not_called()
 
     def test_configure_streams_handles_devnull_and_fd(self):
         actions = []
         with patch.object(cr.os, "pipe") as pipe:
             out_read, err_read = cr._configure_streams(
-                actions, {}, cr.DEVNULL, 9, False
+                actions, {}, [], cr.DEVNULL, 9, False
             )
         self.assertIsNone(out_read)
         self.assertIsNone(err_read)
@@ -1121,6 +1124,35 @@ class CommandRunnerTests(unittest.TestCase):
         self.assertIn(40, closed)
         self.assertIn(42, closed)
         self.assertIn(45, closed)
+
+
+@unittest.skipUnless(
+    os.name == "posix" and os.path.exists("/bin/sh"), "serve una shell POSIX reale"
+)
+class CommandRunnerIntegrationTests(unittest.TestCase):
+    """Esecuzione reale con /bin/sh, senza stub delle primitive POSIX."""
+
+    def test_capture_output_real_process(self):
+        result = cr.run(
+            ["/bin/sh", "-c", "printf uscita; printf errore >&2; exit 3"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 3)
+        self.assertEqual(result.stdout, "uscita")
+        self.assertEqual(result.stderr, "errore")
+
+    def test_large_stdin_and_stdout_do_not_block(self):
+        payload = b"x" * (4 * 1024 * 1024)
+        result = cr.run(
+            ["/bin/sh", "-c", "cat"],
+            capture_output=True,
+            input=payload,
+            timeout=60,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(result.stdout), len(payload))
 
 
 if __name__ == "__main__":
